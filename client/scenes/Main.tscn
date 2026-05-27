@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://aethermoor_main_001"]
+
+[ext_resource type="PackedScene" uid="uid://aethermoor_world_001" path="res://scenes/World.tscn" id="1_world"]
+[ext_resource type="PackedScene" uid="uid://aethermoor_hud_001" path="res://scenes/HUD.tscn" id="2_hud"]
+
+[node name="Main" type="Node2D"]
+
+[node name="World" parent="." instance=ExtResource("1_world")]
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]

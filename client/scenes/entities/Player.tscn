@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://aethermoor_player_001"]
+
+[ext_resource type="Script" path="res://scripts/entities/Player.gd" id="1_playerscript"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 10.0
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_playerscript")
+collision_layer = 1
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_1")
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -35.0
+offset_top = -38.0
+offset_right = 35.0
+offset_bottom = -22.0
+horizontal_alignment = 1
+vertical_alignment = 1
+add_theme_font_size_override/font_size = 11

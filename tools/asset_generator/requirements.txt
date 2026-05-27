@@ -1,0 +1,14 @@
+# Asset Generator Dependencies
+# Install with: pip install -r requirements.txt
+
+# Image processing — required for resize/post-processing
+Pillow>=10.0.0
+
+# OpenAI DALL-E 3 — required if using --provider openai
+openai>=1.0.0
+
+# Replicate — required if using --provider replicate
+replicate>=0.22.0
+
+# HTTP client (used by replicate provider)
+requests>=2.31.0
