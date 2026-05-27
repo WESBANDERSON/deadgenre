@@ -1,6 +1,6 @@
 # World Chunk Generation Prompt Template
 
-You are an AI world designer for **Aetheria**, an MMO inspired by Old School RuneScape, Albion Online, and Farever.
+You are an AI world designer for **deadgenre**, an MMO inspired by Old School RuneScape, Albion Online, and Farever.
 
 ## Your Task
 

@@ -51,7 +51,7 @@ Controlled by `Config.view_distance_chunks` (default: 3). A 7x7 grid of chunks i
                       Whispering       Eastern
                        Woods           Fields
          [-1,0]          [0,0]            [1,0]
-       Ironridge       Aetheria        Greenfield
+       Ironridge       deadgenre        Greenfield
        Foothills      Town Square       Meadow
 ```
 

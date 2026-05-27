@@ -1,6 +1,6 @@
 # Content Authoring Guide
 
-This document explains how to create, validate, and deploy new game content for Aetheria — whether you're a human designer or an AI agent.
+This document explains how to create, validate, and deploy new game content for deadgenre — whether you're a human designer or an AI agent.
 
 ## Content Types
 

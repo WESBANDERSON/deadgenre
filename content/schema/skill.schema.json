@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "aetheria://schemas/skill",
+  "$id": "deadgenre://schemas/skill",
   "title": "Skill Definition",
-  "description": "Schema for Aetheria skill definitions. AI agents adding new skills MUST conform to this schema.",
+  "description": "Schema for deadgenre skill definitions. AI agents adding new skills MUST conform to this schema.",
   "type": "object",
   "required": ["id", "display_name"],
   "properties": {

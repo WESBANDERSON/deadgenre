@@ -1,7 +1,7 @@
 {
   "id": "tutorial_first_steps",
   "display_name": "First Steps",
-  "description": "Speak with Elara the Guide to learn the basics of adventuring in Aetheria.",
+  "description": "Speak with Elara the Guide to learn the basics of adventuring in deadgenre.",
   "quest_giver": "guide_elara",
   "level_requirement": 1,
   "is_repeatable": false,

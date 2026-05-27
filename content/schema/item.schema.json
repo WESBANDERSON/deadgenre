@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "aetheria://schemas/item",
+  "$id": "deadgenre://schemas/item",
   "title": "Item Definition",
-  "description": "Schema for Aetheria item definitions. Used by server (SpacetimeDB) and client (ContentDB). AI agents generating items MUST conform to this schema.",
+  "description": "Schema for deadgenre item definitions. Used by server (SpacetimeDB) and client (ContentDB). AI agents generating items MUST conform to this schema.",
   "type": "object",
   "required": ["id", "display_name", "category", "asset_key"],
   "properties": {

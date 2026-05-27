@@ -2,7 +2,7 @@
 
 ## Overview
 
-Aetheria uses a **tick-based combat system** inspired by Old School RuneScape. Combat resolves in discrete intervals rather than real-time, making it predictable, fair, and easy to extend.
+deadgenre uses a **tick-based combat system** inspired by Old School RuneScape. Combat resolves in discrete intervals rather than real-time, making it predictable, fair, and easy to extend.
 
 ## Current Implementation (V1)
 

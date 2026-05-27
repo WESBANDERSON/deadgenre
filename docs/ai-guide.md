@@ -1,6 +1,6 @@
-# AI Agent Guide for Aetheria
+# AI Agent Guide for deadgenre
 
-This document is the primary reference for AI agents working on the Aetheria codebase. It explains the architecture, conventions, and workflows you need to follow.
+This document is the primary reference for AI agents working on the deadgenre codebase. It explains the architecture, conventions, and workflows you need to follow.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This document is the primary reference for AI agents working on the Aetheria cod
 
 ## Architecture Overview
 
-Aetheria uses a **data-driven, event-driven architecture** across three layers:
+deadgenre uses a **data-driven, event-driven architecture** across three layers:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -191,7 +191,7 @@ pub fn my_reducer(ctx: &ReducerContext, arg: String) {
 ```bash
 cd server
 spacetime build                    # compile to WASM
-spacetime publish aetheria         # deploy to running instance
+spacetime publish deadgenre         # deploy to running instance
 ```
 
 ---

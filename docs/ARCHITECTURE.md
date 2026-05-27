@@ -1,4 +1,4 @@
-# Aetheria Architecture
+# deadgenre Architecture
 
 ## Design Principles
 

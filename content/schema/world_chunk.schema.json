@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "aetheria://schemas/world_chunk",
+  "$id": "deadgenre://schemas/world_chunk",
   "title": "World Chunk Definition",
-  "description": "Schema for Aetheria world chunks. The world is a grid; each file defines one or more chunks.",
+  "description": "Schema for deadgenre world chunks. The world is a grid; each file defines one or more chunks.",
   "type": "object",
   "required": ["id", "chunk_x", "chunk_z", "terrain_type"],
   "properties": {

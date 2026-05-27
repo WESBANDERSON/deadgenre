@@ -77,7 +77,7 @@
   {
     "id": "gold_coin",
     "display_name": "Gold",
-    "description": "The universal currency of Aetheria.",
+    "description": "The universal currency of deadgenre.",
     "category": "material",
     "subcategory": "currency",
     "asset_key": "materials/gold_coin",

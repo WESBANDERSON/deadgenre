@@ -4,7 +4,7 @@ extends Node
 
 # --- Server ---
 var server_uri: String = "http://127.0.0.1:3000"
-var module_name: String = "aetheria"
+var module_name: String = "deadgenre"
 
 # --- Player movement ---
 var player_move_speed: float = 6.0

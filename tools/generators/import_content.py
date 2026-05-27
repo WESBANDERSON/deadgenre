@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTENT_DIR = ROOT / "content"
 
-DEFAULT_MODULE = "aetheria"
+DEFAULT_MODULE = "deadgenre"
 
 
 def spacetime_call(reducer: str, args: list[str], module: str = DEFAULT_MODULE):
