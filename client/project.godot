@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Aethermoor"
+config/name="deadgenre"
 config/description="An AI-first MMO. Simple foundations, infinite potential."
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")

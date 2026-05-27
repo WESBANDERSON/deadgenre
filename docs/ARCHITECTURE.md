@@ -1,4 +1,4 @@
-# Aethermoor Architecture
+# deadgenre Architecture
 
 This document is the primary reference for AI agents and developers extending this codebase. Every major system is described here with its responsibilities, data flow, and extension points.
 

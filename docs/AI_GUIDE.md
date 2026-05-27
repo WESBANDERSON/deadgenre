@@ -1,4 +1,4 @@
-# AI Guide — Extending Aethermoor
+# AI Guide — Extending deadgenre
 
 This guide is written for AI agents (and the humans prompting them) who want to add features, generate content, or refactor systems in this codebase. Every section tells you exactly what to touch and in what order.
 

@@ -1,4 +1,4 @@
-# Aethermoor
+# deadgenre
 
 An AI-first MMO built on the principle that the codebase structure mirrors the gameplay: starts simple, feels good, and expands naturally as development evolves.
 
@@ -11,7 +11,7 @@ An AI-first MMO built on the principle that the codebase structure mirrors the g
 
 ## Philosophy
 
-Traditional MMOs fail the business case because they require everything upfront. Aethermoor inverts this:
+Traditional MMOs fail the business case because they require everything upfront. deadgenre inverts this:
 
 1. **Simple but solid** — Every system works before it's expanded. No stubs that break.
 2. **AI-native** — Code, schemas, and prompts are written for AI agents to read and extend.
@@ -24,7 +24,7 @@ Traditional MMOs fail the business case because they require everything upfront.
 ## Repository Structure
 
 ```
-aethermoor/
+deadgenre/
 ├── client/                 # Godot 4.3 game client
 │   ├── project.godot
 │   ├── scenes/             # Scene files (.tscn)
@@ -79,13 +79,13 @@ aethermoor/
 
 ```bash
 cd server
-spacetime publish aethermoor --clear-database
-spacetime logs aethermoor
+spacetime publish deadgenre --clear-database
+spacetime logs deadgenre
 ```
 
 ### Connect client to server
 
-In `client/scripts/autoload/NetworkManager.gd`, set `SPACETIME_HOST` to your server URL and `DATABASE_NAME` to `"aethermoor"`. The client will auto-connect on start.
+In `client/scripts/autoload/NetworkManager.gd`, set `SPACETIME_HOST` to your server URL and `DATABASE_NAME` to `"deadgenre"`. The client will auto-connect on start.
 
 ### Generate assets
 

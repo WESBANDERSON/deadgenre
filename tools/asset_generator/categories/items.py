@@ -9,7 +9,7 @@ AI AGENT NOTE:
 """
 
 WORLD_CONTEXT = (
-    "Aethermoor, a medieval fantasy world with celtic and northern european aesthetic, "
+    "deadgenre, a medieval fantasy world with celtic and northern european aesthetic, "
     "earthy tones, worn craftsmanship, nature-infused magic"
 )
 

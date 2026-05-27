@@ -7,7 +7,7 @@ AI AGENT NOTE:
 """
 
 WORLD_CONTEXT = (
-    "Aethermoor, medieval fantasy, celtic and norse aesthetic, "
+    "deadgenre, medieval fantasy, celtic and norse aesthetic, "
     "earthy tones, top-down RPG view"
 )
 

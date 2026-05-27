@@ -19,7 +19,7 @@ extends Node
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 const SPACETIME_HOST := "ws://localhost:3000"
-const DATABASE_NAME  := "aethermoor"
+const DATABASE_NAME  := "deadgenre"
 const RECONNECT_DELAY_SEC := 3.0
 
 ## Set true to run without a server (uses local world generation)

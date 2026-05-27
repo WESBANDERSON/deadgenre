@@ -9,7 +9,7 @@ AI AGENT NOTE:
   The `biome` parameter sets additional context for a themed tile set.
 """
 
-WORLD_CONTEXT = "Aethermoor, top-down 2D RPG tileset, medieval fantasy"
+WORLD_CONTEXT = "deadgenre, top-down 2D RPG tileset, medieval fantasy"
 
 TILE_DESCRIPTIONS: dict[str, str] = {
     "grass":    "flat green grass tile, subtle variation in shade, no objects, ground only",

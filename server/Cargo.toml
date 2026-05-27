@@ -1,8 +1,8 @@
 [package]
-name = "aethermoor-server"
+name = "deadgenre-server"
 version = "0.1.0"
 edition = "2021"
-description = "Aethermoor game server — SpacetimeDB module containing all authoritative game logic"
+description = "deadgenre game server — SpacetimeDB module containing all authoritative game logic"
 
 # SpacetimeDB modules must be compiled as a cdylib
 [lib]

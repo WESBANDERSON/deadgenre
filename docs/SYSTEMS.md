@@ -1,4 +1,4 @@
-# Aethermoor Systems Reference
+# deadgenre Systems Reference
 
 Detailed specification for each gameplay system. This is the design contract between server logic and client implementation.
 

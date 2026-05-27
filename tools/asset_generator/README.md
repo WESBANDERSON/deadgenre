@@ -1,6 +1,6 @@
-# Aethermoor Asset Generator
+# deadgenre Asset Generator
 
-AI-powered sprite generator for all game content. Uses OpenAI DALL-E 3 or Stable Diffusion (via Replicate) to generate pixel art sprites that fit the Aethermoor visual style.
+AI-powered sprite generator for all game content. Uses OpenAI DALL-E 3 or Stable Diffusion (via Replicate) to generate pixel art sprites that fit the deadgenre visual style.
 
 ## Setup
 

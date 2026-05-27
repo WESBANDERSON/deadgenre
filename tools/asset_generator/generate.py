@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aethermoor Asset Generator
+deadgenre Asset Generator
 ——————————————————————————
 Generate AI sprites for any game content category.
 
@@ -299,7 +299,7 @@ def run_batch(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Aethermoor AI Asset Generator",
+        description="deadgenre AI Asset Generator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Usage:")[1].split("AI AGENT")[0].strip(),
     )

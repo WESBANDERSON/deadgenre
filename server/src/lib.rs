@@ -1,4 +1,4 @@
-//! Aethermoor Game Server — SpacetimeDB 0.8 Module
+//! deadgenre Game Server — SpacetimeDB 0.8 Module
 //!
 //! Single file containing all tables, reducers, and server logic.
 //! Structured in three sections for easy navigation:
@@ -155,10 +155,10 @@ pub struct CombatEvent {
 /// Called once when the module is first published to SpacetimeDB.
 #[spacetimedb(init)]
 pub fn init() {
-    log::info!("Aethermoor server initializing...");
+    log::info!("deadgenre server initializing...");
     seed_item_catalog();
     seed_world_entities();
-    log::info!("Aethermoor server ready.");
+    log::info!("deadgenre server ready.");
 }
 
 /// Called each time a new WebSocket client connects.
