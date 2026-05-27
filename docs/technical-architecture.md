@@ -46,16 +46,16 @@ In other words: use SpacetimeDB, but do not let the first client become tightly 
 
 ## Architecture goals
 
-1. **Readable by future AI**  
+1. **Readable by future AI**
    Few hidden conventions, small modules, explicit boundaries.
 
-2. **Data-first**  
+2. **Data-first**
    Content should live in structured text where possible.
 
-3. **Authority on the server**  
+3. **Authority on the server**
    Clients predict presentation, but inventory, combat, progression, and economy stay authoritative.
 
-4. **Replaceable seams**  
+4. **Replaceable seams**
    Rendering, networking adapters, and tooling should be replaceable without rewriting core game rules.
 
 ## High-level system layout

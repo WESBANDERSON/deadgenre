@@ -4,19 +4,19 @@ This repository is meant to be extended by both humans and AI agents. Optimize f
 
 ## Core rules
 
-1. **Prefer addition over hidden mutation**  
+1. **Prefer addition over hidden mutation**
    Add new systems in clearly named modules. Avoid changing behavior in surprising places.
 
-2. **Keep systems data-driven**  
+2. **Keep systems data-driven**
    If a designer might want to adjust it later, it should probably live in structured data instead of one-off code.
 
-3. **Start at Tier 0**  
+3. **Start at Tier 0**
    New features should first land as the smallest playable version that proves the loop.
 
-4. **Document architectural changes**  
+4. **Document architectural changes**
    If a major decision changes the structure of the game, update docs and ADRs in the same change.
 
-5. **Separate simulation from presentation**  
+5. **Separate simulation from presentation**
    Server-authoritative rules should not be buried inside client visuals or UI flows.
 
 ## Preferred repo habits

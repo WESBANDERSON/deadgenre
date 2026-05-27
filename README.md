@@ -36,19 +36,19 @@ Why this stack:
 
 ## Project principles
 
-1. **Simple first, depth later**  
+1. **Simple first, depth later**
    Every system needs a low-scope version that is fun before it gains complexity.
 
-2. **Data-driven over hard-coded**  
+2. **Data-driven over hard-coded**
    Items, NPCs, drops, encounters, and progression should be defined in data whenever possible.
 
-3. **AI-readable by default**  
+3. **AI-readable by default**
    Prefer small files, explicit naming, predictable folder structure, and decision records.
 
-4. **Human art direction still matters**  
+4. **Human art direction still matters**
    AI can generate volume, but curated style packs, material libraries, and approvals define the world's identity.
 
-5. **Scale by replacing seams, not rewriting the game**  
+5. **Scale by replacing seams, not rewriting the game**
    Start lightweight, then upgrade rendering, simulation, pipelines, and hosting behind stable interfaces.
 
 ## Core documents
