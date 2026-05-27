@@ -1,0 +1,21 @@
+# Rust build artifacts
+server/target/
+
+# Godot build/import cache
+client/.godot/
+client/assets/generated/.import/
+*.import
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+tools/asset_generator/output/
+
+# Environment / secrets
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
