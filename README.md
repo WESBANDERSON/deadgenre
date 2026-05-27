@@ -1,15 +1,12 @@
 # deadgenre
 
-MMO Starter Blueprint v1 for an AI-native, human-directed MMORPG inspired by:
-- Old School RuneScape (cozy progression loops)
-- Albion Online (economy and social interdependence)
-- Farever (stylized online world cadence)
+MMO Starter Blueprint v1 for a scalable, systems-driven MMORPG.
 
 This blueprint is designed for:
 - Small, smooth MVP first
 - Low hosting and content costs early
 - Clean expansion path for fidelity and feature depth
-- Strong AI-readability so future agents can safely extend systems
+- Strong readability so future contributors can safely extend systems
 
 ---
 
@@ -21,8 +18,8 @@ This blueprint is designed for:
    - Items, mobs, abilities, quests, and recipes are authored as schema data, not hardcoded logic.
 3. **Authoritative simulation**
    - Server owns truth; client is responsive but never authoritative on gameplay outcomes.
-4. **AI-accelerated, human-directed**
-   - AI creates draft content at scale, humans curate key assets and lore anchors.
+4. **Pipeline-accelerated, human-directed**
+   - Content production is structured to scale while preserving artistic direction.
 5. **Progressive fidelity**
    - Visual/animation/audio quality can be upgraded over time without rewriting core systems.
 
@@ -81,7 +78,7 @@ This blueprint is designed for:
     services/
       content-validator/
       content-importer/
-      ai-asset-jobs/
+      content-jobs/
   content/
     schemas/
       item.schema.json
@@ -108,9 +105,6 @@ This blueprint is designed for:
     manifests/
       import-manifest.json
   tools/
-    prompts/
-      weapon_set_prompt.md
-      style_guard_prompt.md
     policies/
       asset_quality_policy.md
       lore_consistency_policy.md
@@ -124,7 +118,7 @@ All schemas include:
 - `id` (string, immutable key)
 - `version` (integer)
 - `tags` (string[])
-- `author` (`human` or `ai`)
+- `author` (`internal`)
 - `status` (`draft`, `playtest`, `approved`, `deprecated`)
 
 ### 1. `zone`
@@ -132,7 +126,7 @@ Defines world partitions and environmental parameters.
 - Fields: `biome`, `danger_level`, `spawn_rules`, `resource_nodes`, `music_profile`
 
 ### 2. `npc`
-Non-combat and service agents.
+Non-combat and service characters.
 - Fields: `role` (vendor/trainer/questgiver), `dialogue_tree_id`, `shop_table_id`, `faction`
 
 ### 3. `monster`
@@ -214,14 +208,14 @@ Task graphs for progression.
 
 ---
 
-## 6) AI Asset Generation Pipeline (weapons example)
+## 6) Content Production Pipeline (weapons example)
 
 ### Pipeline stages
-1. **Spec generation**
-   - Agent reads raid design brief and outputs weapon family specs.
-2. **Prompt synthesis**
-   - Convert specs into image/mesh prompts plus negative prompts.
-3. **Asset generation**
+1. **Spec drafting**
+   - A content pipeline step reads the raid design brief and outputs weapon family specs.
+2. **Input synthesis**
+   - Convert specs into production-ready input packages.
+3. **Asset production**
    - Generate concept sheets, then 3D meshes/textures.
 4. **Validation gates**
    - Poly budget, texture budget, style similarity, lore checks.
@@ -231,21 +225,6 @@ Task graphs for progression.
    - Emit machine-readable import file for client/server content sync.
 7. **Human approval**
    - Approve/reject per asset tier and world zone rules.
-
-### Prompt template (`tools/prompts/weapon_set_prompt.md`)
-```text
-You are generating a coherent weapon set for raid: {raid_name}.
-Visual style anchor: {style_anchor}.
-Biome/material constraints: {biome_constraints}.
-Weapon families required: {weapon_families}.
-Rarity tiers: {rarity_tiers}.
-
-Output requirements:
-- Keep forms readable at isometric-to-third-person distance.
-- Avoid tiny details that disappear at gameplay camera.
-- Include silhouette notes for each weapon.
-- Emit metadata: {id, family, tier, materials, motifs}.
-```
 
 ### Quality policy highlights (`tools/policies/asset_quality_policy.md`)
 - Hard fail if:
@@ -259,7 +238,7 @@ Output requirements:
 
 ### Human override policy
 - Protected asset classes: bosses, story artifacts, major town landmarks, UI icons.
-- AI may propose variants, but final publish requires human approval for protected classes.
+- Draft variants may be proposed automatically, but final publish requires human approval for protected classes.
 
 ---
 
@@ -302,7 +281,7 @@ Rule: gameplay logic and content IDs stay stable while presentation assets evolv
 
 ---
 
-## 9) First Agent Workflows
+## 9) First Content Workflows
 
 ### Workflow A: “Generate raid weapon pack”
 Input:
@@ -357,8 +336,8 @@ Output:
 - [ ] Quest chain with branching step(s)
 - [ ] Market board and simple trade settlement
 
-### Milestone 3: AI content loop
-- [ ] Weapon generation agent pipeline online
+### Milestone 3: Content pipeline loop
+- [ ] Weapon content pipeline online
 - [ ] Validation gates integrated in CI/content import
 - [ ] Human approval queue and publish toggle
 - [ ] Hotload approved assets into non-critical content paths
@@ -379,6 +358,6 @@ A new system is considered production-ready only when it has:
 - Client UX implementation
 - Telemetry events
 - Tests (unit + integration path)
-- AI extension notes (what an agent can safely modify)
+- Extension notes (what can be safely modified and where approval is required)
 
-This keeps the project legible to future developers and future AI agents.
+This keeps the project legible to future developers and maintainers.
