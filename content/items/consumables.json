@@ -1,0 +1,47 @@
+[
+  {
+    "id": "health_potion_small",
+    "display_name": "Small Health Potion",
+    "description": "Restores 25 HP. Tastes vaguely of cherries.",
+    "category": "consumable",
+    "subcategory": "potion",
+    "asset_key": "consumables/health_potion_small",
+    "rarity": 0,
+    "max_stack": 20,
+    "level_requirement": 0,
+    "is_tradeable": true,
+    "stats": { "attack": 0, "defense": 0, "speed": 0, "hp": 25 },
+    "equip_slot": "none",
+    "base_value": 10
+  },
+  {
+    "id": "health_potion_medium",
+    "display_name": "Medium Health Potion",
+    "description": "Restores 75 HP. A staple of any adventurer's pack.",
+    "category": "consumable",
+    "subcategory": "potion",
+    "asset_key": "consumables/health_potion_medium",
+    "rarity": 1,
+    "max_stack": 10,
+    "level_requirement": 10,
+    "is_tradeable": true,
+    "stats": { "attack": 0, "defense": 0, "speed": 0, "hp": 75 },
+    "equip_slot": "none",
+    "base_value": 40
+  },
+  {
+    "id": "bread",
+    "display_name": "Bread",
+    "description": "A simple loaf. Restores a small amount of HP over time.",
+    "category": "consumable",
+    "subcategory": "food",
+    "asset_key": "consumables/bread",
+    "rarity": 0,
+    "max_stack": 20,
+    "level_requirement": 0,
+    "is_tradeable": true,
+    "stats": { "attack": 0, "defense": 0, "speed": 0, "hp": 10 },
+    "equip_slot": "none",
+    "base_value": 3
+  }
+]

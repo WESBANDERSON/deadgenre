@@ -1,0 +1,86 @@
+[
+  {
+    "id": "goblin",
+    "display_name": "Goblin",
+    "description": "A small, green, ill-tempered creature.",
+    "npc_type": "hostile",
+    "asset_key": "npcs/goblin",
+    "max_hp": 30,
+    "attack": 4,
+    "defense": 2,
+    "speed": 4,
+    "level": 2,
+    "xp_reward": 15,
+    "loot_table": [
+      { "item_id": "gold_coin", "weight": 80, "min_qty": 1, "max_qty": 10 },
+      { "item_id": "bronze_sword", "weight": 10, "min_qty": 1, "max_qty": 1 }
+    ],
+    "dialogue_key": ""
+  },
+  {
+    "id": "giant_rat",
+    "display_name": "Giant Rat",
+    "description": "Bigger than you'd like. Surprisingly aggressive.",
+    "npc_type": "hostile",
+    "asset_key": "npcs/giant_rat",
+    "max_hp": 15,
+    "attack": 2,
+    "defense": 1,
+    "speed": 6,
+    "level": 1,
+    "xp_reward": 8,
+    "loot_table": [
+      { "item_id": "gold_coin", "weight": 50, "min_qty": 1, "max_qty": 3 }
+    ],
+    "dialogue_key": ""
+  },
+  {
+    "id": "skeleton_warrior",
+    "display_name": "Skeleton Warrior",
+    "description": "Animated bones held together by dark magic. Wields a rusted blade.",
+    "npc_type": "hostile",
+    "asset_key": "npcs/skeleton_warrior",
+    "max_hp": 60,
+    "attack": 10,
+    "defense": 8,
+    "speed": 3,
+    "level": 8,
+    "xp_reward": 45,
+    "loot_table": [
+      { "item_id": "gold_coin", "weight": 70, "min_qty": 5, "max_qty": 25 },
+      { "item_id": "iron_sword", "weight": 5, "min_qty": 1, "max_qty": 1 },
+      { "item_id": "iron_ore", "weight": 15, "min_qty": 1, "max_qty": 3 }
+    ],
+    "dialogue_key": ""
+  },
+  {
+    "id": "merchant_grundy",
+    "display_name": "Grundy the Merchant",
+    "description": "A portly fellow with a keen eye for a deal.",
+    "npc_type": "merchant",
+    "asset_key": "npcs/merchant_grundy",
+    "max_hp": 200,
+    "attack": 0,
+    "defense": 50,
+    "speed": 0,
+    "level": 1,
+    "xp_reward": 0,
+    "loot_table": [],
+    "dialogue_key": "merchant_grundy_intro"
+  },
+  {
+    "id": "guide_elara",
+    "display_name": "Elara the Guide",
+    "description": "A kind soul who helps new adventurers find their footing.",
+    "npc_type": "quest_giver",
+    "asset_key": "npcs/guide_elara",
+    "max_hp": 200,
+    "attack": 0,
+    "defense": 50,
+    "speed": 0,
+    "level": 1,
+    "xp_reward": 0,
+    "loot_table": [],
+    "dialogue_key": "elara_intro"
+  }
+]

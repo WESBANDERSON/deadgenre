@@ -1,0 +1,87 @@
+[
+  {
+    "id": "0,0",
+    "chunk_x": 0,
+    "chunk_z": 0,
+    "terrain_type": "town",
+    "display_name": "Aetheria Town Square",
+    "is_pvp_zone": false,
+    "is_safe_zone": true,
+    "level_min": 1,
+    "level_max": 1,
+    "music_key": "music/town_peaceful",
+    "ambient_key": "ambient/town_bustle",
+    "spawns": [
+      { "type": "npc", "ref_id": "merchant_grundy", "pos_x": 5, "pos_y": 0, "pos_z": 5 },
+      { "type": "npc", "ref_id": "guide_elara", "pos_x": 8, "pos_y": 0, "pos_z": 3 }
+    ]
+  },
+  {
+    "id": "1,0",
+    "chunk_x": 1,
+    "chunk_z": 0,
+    "terrain_type": "plains",
+    "display_name": "Greenfield Meadow",
+    "is_pvp_zone": false,
+    "is_safe_zone": false,
+    "level_min": 1,
+    "level_max": 3,
+    "music_key": "music/plains_calm",
+    "ambient_key": "ambient/wind_grass",
+    "spawns": [
+      { "type": "npc", "ref_id": "giant_rat", "pos_x": 10, "pos_y": 0, "pos_z": 8, "count": 3 },
+      { "type": "npc", "ref_id": "goblin", "pos_x": 20, "pos_y": 0, "pos_z": 15, "count": 2 }
+    ]
+  },
+  {
+    "id": "0,1",
+    "chunk_x": 0,
+    "chunk_z": 1,
+    "terrain_type": "forest",
+    "display_name": "Whispering Woods",
+    "is_pvp_zone": false,
+    "is_safe_zone": false,
+    "level_min": 3,
+    "level_max": 8,
+    "music_key": "music/forest_mysterious",
+    "ambient_key": "ambient/forest_birds",
+    "spawns": [
+      { "type": "npc", "ref_id": "goblin", "pos_x": 12, "pos_y": 0, "pos_z": 12, "count": 4 },
+      { "type": "object", "ref_id": "tree_oak", "pos_x": 5, "pos_y": 0, "pos_z": 5, "count": 8 }
+    ]
+  },
+  {
+    "id": "1,1",
+    "chunk_x": 1,
+    "chunk_z": 1,
+    "terrain_type": "plains",
+    "display_name": "Eastern Fields",
+    "is_pvp_zone": false,
+    "is_safe_zone": false,
+    "level_min": 2,
+    "level_max": 5,
+    "music_key": "music/plains_calm",
+    "ambient_key": "ambient/wind_grass",
+    "spawns": [
+      { "type": "npc", "ref_id": "goblin", "pos_x": 16, "pos_y": 0, "pos_z": 16, "count": 3 },
+      { "type": "object", "ref_id": "rock_copper", "pos_x": 8, "pos_y": 0, "pos_z": 20, "count": 4 }
+    ]
+  },
+  {
+    "id": "-1,0",
+    "chunk_x": -1,
+    "chunk_z": 0,
+    "terrain_type": "mountain",
+    "display_name": "Ironridge Foothills",
+    "is_pvp_zone": false,
+    "is_safe_zone": false,
+    "level_min": 5,
+    "level_max": 12,
+    "music_key": "music/mountain_wind",
+    "ambient_key": "ambient/wind_mountain",
+    "spawns": [
+      { "type": "npc", "ref_id": "skeleton_warrior", "pos_x": 10, "pos_y": 0, "pos_z": 10, "count": 3 },
+      { "type": "object", "ref_id": "rock_iron", "pos_x": 15, "pos_y": 0, "pos_z": 8, "count": 5 }
+    ]
+  }
+]

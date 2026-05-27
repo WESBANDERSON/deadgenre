@@ -1,0 +1,50 @@
+[
+  {
+    "id": "combat",
+    "display_name": "Combat",
+    "description": "Your prowess in battle. Higher levels unlock stronger weapons and armor.",
+    "max_level": 99,
+    "base_xp": 100,
+    "icon_key": "skills/combat"
+  },
+  {
+    "id": "mining",
+    "display_name": "Mining",
+    "description": "The art of extracting ores and gems from rock.",
+    "max_level": 99,
+    "base_xp": 80,
+    "icon_key": "skills/mining"
+  },
+  {
+    "id": "smithing",
+    "display_name": "Smithing",
+    "description": "Forge bars into weapons, armor, and tools.",
+    "max_level": 99,
+    "base_xp": 120,
+    "icon_key": "skills/smithing"
+  },
+  {
+    "id": "woodcutting",
+    "display_name": "Woodcutting",
+    "description": "Fell trees and gather logs for crafting.",
+    "max_level": 99,
+    "base_xp": 80,
+    "icon_key": "skills/woodcutting"
+  },
+  {
+    "id": "cooking",
+    "display_name": "Cooking",
+    "description": "Prepare food that heals and buffs.",
+    "max_level": 99,
+    "base_xp": 60,
+    "icon_key": "skills/cooking"
+  },
+  {
+    "id": "fishing",
+    "display_name": "Fishing",
+    "description": "Catch fish from rivers, lakes, and the open sea.",
+    "max_level": 99,
+    "base_xp": 70,
+    "icon_key": "skills/fishing"
+  }
+]

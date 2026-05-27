@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "aetheria://schemas/item",
+  "title": "Item Definition",
+  "description": "Schema for Aetheria item definitions. Used by server (SpacetimeDB) and client (ContentDB). AI agents generating items MUST conform to this schema.",
+  "type": "object",
+  "required": ["id", "display_name", "category", "asset_key"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Unique item slug. Lowercase, underscores only. Must match filename (e.g. bronze_sword.json -> id: bronze_sword)."
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name shown in-game."
+    },
+    "description": {
+      "type": "string",
+      "default": "",
+      "description": "Flavor text / tooltip description."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["weapon", "armor", "consumable", "material", "quest", "tool"],
+      "description": "Primary item category."
+    },
+    "subcategory": {
+      "type": "string",
+      "default": "",
+      "description": "Finer grouping: sword, axe, helmet, potion, ore, etc."
+    },
+    "asset_key": {
+      "type": "string",
+      "description": "Key used by AssetResolver to find the texture/model. Convention: category/id (e.g. weapons/bronze_sword)."
+    },
+    "rarity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4,
+      "default": 0,
+      "description": "0=common, 1=uncommon, 2=rare, 3=epic, 4=legendary"
+    },
+    "max_stack": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Maximum stack size in inventory."
+    },
+    "level_requirement": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Minimum player/skill level to use."
+    },
+    "is_tradeable": {
+      "type": "boolean",
+      "default": true
+    },
+    "stats": {
+      "type": "object",
+      "description": "Stat modifiers when equipped.",
+      "properties": {
+        "attack": { "type": "integer", "default": 0 },
+        "defense": { "type": "integer", "default": 0 },
+        "speed": { "type": "integer", "default": 0 },
+        "hp": { "type": "integer", "default": 0 }
+      },
+      "additionalProperties": false
+    },
+    "equip_slot": {
+      "type": "string",
+      "enum": ["none", "head", "body", "legs", "feet", "main_hand", "off_hand", "ring", "amulet"],
+      "default": "none",
+      "description": "Which equipment slot this item occupies. 'none' = not equippable."
+    },
+    "base_value": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Base gold value for buy/sell calculations."
+    }
+  },
+  "additionalProperties": false
+}

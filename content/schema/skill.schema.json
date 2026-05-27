@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "aetheria://schemas/skill",
+  "title": "Skill Definition",
+  "description": "Schema for Aetheria skill definitions. AI agents adding new skills MUST conform to this schema.",
+  "type": "object",
+  "required": ["id", "display_name"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Unique skill slug."
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "max_level": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 99
+    },
+    "base_xp": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 100,
+      "description": "XP multiplier for level curve: xp_for_level = base_xp * level^2"
+    },
+    "icon_key": {
+      "type": "string",
+      "default": "",
+      "description": "Asset key for the skill icon."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "aetheria://schemas/world_chunk",
+  "title": "World Chunk Definition",
+  "description": "Schema for Aetheria world chunks. The world is a grid; each file defines one or more chunks.",
+  "type": "object",
+  "required": ["id", "chunk_x", "chunk_z", "terrain_type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique chunk key, typically 'x,z' format."
+    },
+    "chunk_x": {
+      "type": "integer"
+    },
+    "chunk_z": {
+      "type": "integer"
+    },
+    "terrain_type": {
+      "type": "string",
+      "enum": ["plains", "forest", "desert", "mountain", "town", "dungeon"]
+    },
+    "display_name": {
+      "type": "string",
+      "default": ""
+    },
+    "is_pvp_zone": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_safe_zone": {
+      "type": "boolean",
+      "default": false
+    },
+    "level_min": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 1
+    },
+    "level_max": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 5
+    },
+    "music_key": {
+      "type": "string",
+      "default": ""
+    },
+    "ambient_key": {
+      "type": "string",
+      "default": ""
+    },
+    "spawns": {
+      "type": "array",
+      "description": "NPCs/objects to spawn in this chunk.",
+      "items": {
+        "type": "object",
+        "required": ["type", "ref_id"],
+        "properties": {
+          "type": { "type": "string", "enum": ["npc", "object"] },
+          "ref_id": { "type": "string" },
+          "pos_x": { "type": "number", "default": 0 },
+          "pos_y": { "type": "number", "default": 0 },
+          "pos_z": { "type": "number", "default": 0 },
+          "count": { "type": "integer", "minimum": 1, "default": 1 }
+        }
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

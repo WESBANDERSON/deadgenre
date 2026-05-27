@@ -1,0 +1,29 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+
+# Rust / SpacetimeDB
+server/target/
+*.wasm
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Generated content (keep templates, ignore generated output)
+content/items/generated_*.json
+
+# User config
+config.json

@@ -1,0 +1,39 @@
+{
+  "id": "tutorial_first_steps",
+  "display_name": "First Steps",
+  "description": "Speak with Elara the Guide to learn the basics of adventuring in Aetheria.",
+  "quest_giver": "guide_elara",
+  "level_requirement": 1,
+  "is_repeatable": false,
+  "steps": [
+    {
+      "step_id": "talk_to_elara",
+      "type": "talk",
+      "target_npc": "guide_elara",
+      "dialogue_key": "elara_intro",
+      "description": "Speak with Elara."
+    },
+    {
+      "step_id": "kill_rats",
+      "type": "kill",
+      "target_npc": "giant_rat",
+      "count": 3,
+      "description": "Defeat 3 Giant Rats."
+    },
+    {
+      "step_id": "return_to_elara",
+      "type": "talk",
+      "target_npc": "guide_elara",
+      "dialogue_key": "elara_quest_complete",
+      "description": "Return to Elara."
+    }
+  ],
+  "rewards": {
+    "xp": { "combat": 50 },
+    "items": [
+      { "item_id": "bronze_sword", "quantity": 1 },
+      { "item_id": "health_potion_small", "quantity": 5 },
+      { "item_id": "gold_coin", "quantity": 50 }
+    ]
+  }
+}

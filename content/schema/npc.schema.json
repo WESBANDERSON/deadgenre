@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "aetheria://schemas/npc",
+  "title": "NPC Definition",
+  "description": "Schema for Aetheria NPC definitions. Defines archetypes, not instances. Instances are spawned in-world referencing these by npc_id.",
+  "type": "object",
+  "required": ["id", "display_name", "npc_type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "npc_type": {
+      "type": "string",
+      "enum": ["hostile", "friendly", "neutral", "merchant", "quest_giver"]
+    },
+    "asset_key": {
+      "type": "string",
+      "default": ""
+    },
+    "max_hp": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 50
+    },
+    "attack": {
+      "type": "integer",
+      "default": 5
+    },
+    "defense": {
+      "type": "integer",
+      "default": 5
+    },
+    "speed": {
+      "type": "integer",
+      "default": 3
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1
+    },
+    "xp_reward": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 10
+    },
+    "loot_table": {
+      "type": "array",
+      "description": "Loot drop entries.",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "weight"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0 },
+          "min_qty": { "type": "integer", "minimum": 1, "default": 1 },
+          "max_qty": { "type": "integer", "minimum": 1, "default": 1 }
+        }
+      },
+      "default": []
+    },
+    "dialogue_key": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "additionalProperties": false
+}
