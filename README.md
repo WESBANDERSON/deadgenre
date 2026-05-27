@@ -1,86 +1,132 @@
 # deadgenre
 
-MMO Starter Blueprint v1 for a scalable, systems-driven MMORPG.
+An AI-first MMO. Simple foundations, infinite potential.
 
-This project is designed to:
-- start with a small, polished vertical slice
-- run lightweight infrastructure early
-- expand content depth and visual fidelity without rewrites
-- keep systems readable and maintainable as the team grows
-
----
-
-## Vision
-
-Build a shared-world RPG that feels smooth immediately, then scale scope through stable interfaces and data-driven systems.
-
-### Design priorities
-1. **Simple systems, deep interactions**
-2. **Authoritative multiplayer simulation**
-3. **Data-first content definitions**
-4. **Progressive fidelity over time**
-5. **Clear boundaries between client, server, and content pipelines**
+**Inspiration**: Old School RuneScape · Albion Online · Farever  
+**Engine**: Godot 4.3  
+**Backend**: SpacetimeDB (Rust)  
+**Visual style**: Programmatic 2D top-down, AI-generated sprite upgrades over time
 
 ---
 
-## Recommended foundation
+## Philosophy
 
-### Runtime
-- **Client:** Godot 4.x
-- **Authoritative state:** SpacetimeDB
-- **Simulation/services:** Rust modules + helper services
-- **Tooling:** Python and TypeScript for validation and internal pipelines
+Traditional MMOs fail the business case because they require everything upfront. deadgenre inverts this:
 
-### Content and assets
-- **Schema format:** JSON/JSON5 with strict schema validation
-- **Asset format:** GLB/GLTF + PNG/WebP + OGG
-- **Versioning:** Git + semantic content versions (for example: `weapon.v3`)
+1. **Simple but solid** — Every system works before it's expanded. No stubs that break.
+2. **AI-native** — Code, schemas, and prompts are written for AI agents to read and extend.
+3. **Asset generation pipeline** — Run `tools/asset_generator/generate.py` to kick off a batch of AI-generated sprites for any content category.
+4. **SpacetimeDB backend** — Real-time, relational, scalable. Upgrade server capacity without changing application code.
+5. **Lightweight by default** — The game runs with zero external assets on day one. Fidelity increases as assets are generated.
 
-### Observability
-- structured logs
-- event metrics
-- replay-friendly gameplay traces
+See [`docs/game-vision.md`](docs/game-vision.md) for the full design vision and tier-based expansion model.
 
 ---
 
-## Project structure (starter)
+## Repository Structure
 
-```text
-/
-  README.md
-  AGENTS.md
-  docs/
-    game-vision.md
-    technical-architecture.md
-    architecture.md
-    adr/
-      ADR-001-authoritative-server.md
-      ADR-002-data-first-content.md
-  game-client/
-    project.godot
-    scenes/
-    scripts/
-  game-server/
-    spacetime/
-      src/modules/
-      schema/
-    services/
-      content-validator/
-      content-importer/
-      content-jobs/
-  content/
-    schemas/
-    data/
-    manifests/
-  tools/
-    policies/
+```
+deadgenre/
+├── client/                 # Godot 4.3 game client
+│   ├── project.godot
+│   ├── scenes/             # Scene files (.tscn)
+│   ├── scripts/
+│   │   ├── autoload/       # Global singletons (GameManager, EventBus, NetworkManager)
+│   │   ├── world/          # World, chunks, tilemap, pathfinding
+│   │   ├── entities/       # Player, NPC, Mob base classes
+│   │   ├── systems/        # Combat, Skills, Inventory, Crafting
+│   │   ├── ui/             # HUD, panels, menus
+│   │   └── network/        # SpacetimeDB adapter and message handlers
+│   └── assets/
+│       ├── sprites/        # Organized by category; hand-crafted assets
+│       └── generated/      # AI-generated assets land here
+│
+├── server/                 # SpacetimeDB module (Rust)
+│   ├── Cargo.toml
+│   └── src/
+│       └── lib.rs          # All tables and reducers
+│
+├── tools/
+│   └── asset_generator/    # AI asset generation pipeline
+│       ├── generate.py     # Entry point: python generate.py --category items --batch raid_weapons
+│       ├── config.py       # Style profiles, API keys, output paths
+│       ├── categories/     # Per-category generation logic and prompts
+│       └── styles/         # Visual style definitions
+│
+└── docs/
+    ├── ARCHITECTURE.md          # Full system architecture for AI agents
+    ├── AI_GUIDE.md              # How to extend this codebase with AI
+    ├── SYSTEMS.md               # Detailed system reference
+    ├── game-vision.md           # Product vision and design pillars
+    ├── technical-architecture.md # Infrastructure and stack decisions
+    └── ai-content-pipeline.md  # AI content generation strategy
 ```
 
 ---
 
-## Core schemas (MVP contracts)
+## Getting Started
+
+### Prerequisites
+
+- [Godot 4.3](https://godotengine.org/download)
+- [Rust](https://rustup.rs/) + `cargo`
+- [SpacetimeDB CLI](https://spacetimedb.com/install)
+- Python 3.11+ (for asset generation)
+
+### Run the client (offline mode)
+
+```bash
+# Open Godot and import client/project.godot
+# The game runs in offline mode without a SpacetimeDB connection
+```
+
+### Run the server
+
+```bash
+cd server
+spacetime publish deadgenre --clear-database
+spacetime logs deadgenre
+```
+
+### Connect client to server
+
+In `client/scripts/autoload/NetworkManager.gd`, set `SPACETIME_HOST` to your server URL and `DATABASE_NAME` to `"deadgenre"`. The client will auto-connect on start.
+
+### Generate assets
+
+```bash
+cd tools/asset_generator
+pip install -r requirements.txt
+# Set OPENAI_API_KEY in your environment (or use Replicate for Stable Diffusion)
+python generate.py --category items --batch "iron_sword,fire_staff,oak_bow" --style pixel_art_32
+```
+
+---
+
+## Development Roadmap
+
+The game is designed to grow in tiers. Current foundation:
+
+| System | Status | Description |
+|--------|--------|-------------|
+| World rendering | ✅ | Procedural tile world, chunk streaming |
+| Player movement | ✅ | Click-to-move with A* pathfinding |
+| Network sync | ✅ | SpacetimeDB player state sync |
+| Combat | ✅ | Basic melee combat with cooldowns |
+| Skills | ✅ | XP framework (8 skills) |
+| Inventory | ✅ | 28-slot server-mirrored inventory |
+| AI assets | ✅ | Generation pipeline for any category |
+| NPC dialogue | 🔜 | Dialogue trees, AI-generated lines |
+| Crafting | 🔜 | Recipe-based crafting system |
+| Guilds | 🔜 | Territory control, guild banks |
+| Economy | 🔜 | Player-driven market |
+
+---
+
+## Core Schemas (MVP contracts)
 
 Target schema set:
+
 1. `zone`
 2. `npc`
 3. `monster`
@@ -92,72 +138,41 @@ Target schema set:
 9. `loot-table`
 10. `quest`
 
-Common fields:
-- `id` (immutable key)
-- `version`
-- `tags`
-- `author` (`internal`)
-- `status` (`draft`, `playtest`, `approved`, `deprecated`)
+Common fields on all schemas: `id` (immutable), `version`, `tags`, `author`, `status` (`draft` / `playtest` / `approved` / `deprecated`).
 
 ---
 
-## SpacetimeDB world model (MVP)
+## SpacetimeDB World Model (MVP)
 
-### Core tables
-- `players`
-- `characters`
-- `inventories`
-- `equipment`
-- `zones`
-- `entities`
-- `combat_states`
-- `market_orders`
-- `craft_jobs`
-- `world_events`
+### Tables
+`players` · `characters` · `inventories` · `equipment` · `zones` · `entities` · `combat_states` · `market_orders` · `craft_jobs` · `world_events`
 
-### Core reducers
-- `move_character`
-- `use_ability`
-- `apply_damage`
-- `loot_entity`
-- `equip_item`
-- `unequip_item`
-- `start_craft`
-- `complete_craft`
-- `post_market_order`
-- `resolve_market_trade`
-- `accept_quest`
-- `complete_quest_step`
+### Reducers
+`move_character` · `use_ability` · `apply_damage` · `loot_entity` · `equip_item` · `unequip_item` · `start_craft` · `complete_craft` · `post_market_order` · `resolve_market_trade` · `accept_quest` · `complete_quest_step`
 
 Rule: reducers stay deterministic and schema-driven; clients send intents, server validates outcomes.
 
 ---
 
-## Vertical slice scope
+## Vertical Slice Scope
 
 - 1 town hub
 - 2 gathering zones
 - 1 combat wilderness
-- 1 mini dungeon/raid
+- 1 mini dungeon / raid
 - gathering, crafting, and combat baseline loops
-- inventory/equipment progression
-- basic social features (party/chat/friends)
+- inventory / equipment progression
+- basic social features (party / chat / friends)
 
-Focus on feel first: movement responsiveness, combat readability, and reward cadence.
+Focus on feel first: movement responsiveness, combat readability, reward cadence.
 
 ---
 
-## Progressive fidelity plan
+## Progressive Fidelity Plan
 
-Start with low-cost presentation defaults and scale by profile:
+Start with low-cost defaults and scale by profile: `low | medium | high | cinematic`
 
-- `fidelity_profile = low | medium | high | cinematic`
-
-Upgrade vectors:
-- LOD and shader quality
-- animation set quality
-- VFX/audio layers
-- environmental density
+Upgrade vectors: LOD and shader quality · animation set quality · VFX/audio layers · environmental density
 
 Gameplay logic and content IDs remain stable while presentation quality evolves.
 
@@ -165,46 +180,48 @@ Gameplay logic and content IDs remain stable while presentation quality evolves.
 
 ## Milestones
 
-### Milestone 0: Foundation
-- repository skeleton
-- schema validation CLI
-- ADRs for key architectural decisions
-- CI for formatting/lint/schema checks
+### Milestone 0 — Foundation ✅
+- Repository skeleton and documentation
+- Client boots in offline mode
+- Server module compiles and publishes
+- AI asset generation pipeline
 
-### Milestone 1: Playable loop
-- login/spawn
-- movement replication
-- baseline combat loop
-- inventory/equipment loop
-- gather -> craft -> equip chain
+### Milestone 1 — Playable Loop
+- Login / spawn
+- Movement replication
+- Baseline combat loop
+- Inventory / equipment loop
+- Gather → craft → equip chain
 
-### Milestone 2: Living world
-- NPC services
-- monster spawns + loot
-- quest chain
-- market board + trade settlement
+### Milestone 2 — Living World
+- NPC services and dialogue
+- Monster spawns + loot tables
+- Quest chain
+- Market board + trade settlement
 
-### Milestone 3: Content pipeline
-- weapon content pipeline online
-- validation gates in import/CI
-- approval and publish workflow
-- hotload for non-critical content paths
+### Milestone 3 — Content Pipeline
+- Weapon content pipeline
+- Validation gates in import / CI
+- Approval and publish workflow
+- Hotload for non-critical content
 
-### Milestone 4: First group challenge
-- first raid prototype
-- party finder polish
-- telemetry dashboards
-- regular balance cadence
+### Milestone 4 — First Group Challenge
+- First raid prototype
+- Party finder
+- Telemetry dashboards
+- Regular balance cadence
 
 ---
 
-## Definition of done (new systems)
+## Definition of Done (new systems)
 
 A system is done only when it includes:
+
 - schema + examples
 - authoritative server coverage
 - client UX implementation
 - telemetry events
-- unit/integration tests
+- unit / integration tests
 - extension notes and approval boundaries
 
+See [`AGENTS.md`](AGENTS.md) for AI contributor conventions.

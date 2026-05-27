@@ -1,0 +1,17 @@
+{
+    "_comment": "Core world tile sprites for all biomes",
+    "category": "tiles",
+    "style": "pixel_art_32",
+    "context": "deadgenre world tileset, varied biomes",
+    "items": [
+        "grass",
+        "forest",
+        "stone",
+        "water",
+        "sand",
+        "dirt",
+        "snow",
+        "swamp",
+        "lava"
+    ]
+}

@@ -1,0 +1,13 @@
+{
+    "_comment": "Starter area mob sprites",
+    "category": "characters",
+    "style": "pixel_art_32",
+    "context": "starter zone, low-level enemies, not too threatening",
+    "items": [
+        "goblin",
+        "goblin_shaman",
+        "wolf",
+        "merchant",
+        "merchant_alice"
+    ]
+}

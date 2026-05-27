@@ -1,0 +1,20 @@
+[package]
+name = "deadgenre-server"
+version = "0.1.0"
+edition = "2021"
+description = "deadgenre game server — SpacetimeDB module containing all authoritative game logic"
+
+# SpacetimeDB modules must be compiled as a cdylib
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Core SpacetimeDB SDK — provides the table/reducer macros and Identity type.
+# Using 0.8.x: last series compatible with Rust < 1.90.
+# To upgrade to 1.x: update the CI toolchain to Rust 1.90+ first.
+spacetimedb = "0.8"
+log = "0.4"
+
+# serde_json for flexible stats blobs and chunk data serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

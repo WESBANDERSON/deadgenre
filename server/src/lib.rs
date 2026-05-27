@@ -1,0 +1,556 @@
+//! deadgenre Game Server — SpacetimeDB 0.8 Module
+//!
+//! Single file containing all tables, reducers, and server logic.
+//! Structured in three sections for easy navigation:
+//!
+//!   1. TABLES      — persistent game state (replicated to subscribed clients)
+//!   2. REDUCERS    — client-callable actions + lifecycle hooks
+//!   3. INTERNALS   — private helpers (world gen, XP math, validation)
+//!
+//! SpacetimeDB 0.8 API quick reference:
+//!   - Tables:     #[spacetimedb(table)]
+//!   - PK field:   #[primarykey]
+//!   - Auto-inc:   #[autoinc]
+//!   - 2nd index:  #[spacetimedb(index(btree, field_name))] on the struct
+//!   - Reducers:   #[spacetimedb(reducer)]
+//!   - Lifecycle:  #[spacetimedb(init)], #[spacetimedb(connect)], #[spacetimedb(disconnect)]
+//!   - Table reads: TableName::filter_by_field(&val) or TableName::iter()
+//!   - Timestamp:  ctx.timestamp.into_micros_since_epoch()
+//!
+//! UPGRADE PATH to SpacetimeDB 1.x (requires Rust ≥ 1.90):
+//!   - #[spacetimedb(table)] → #[spacetimedb::table(name = snake_case, public)]
+//!   - #[primarykey]        → #[primary_key]
+//!   - Table access         → ctx.db.table().field().find(&val)
+//!   - Reducers can return  Result<(), String>
+
+use spacetimedb::{spacetimedb, Identity, ReducerContext};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SECTION 1: TABLES
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Core player record. One row per registered account.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct Player {
+    #[primarykey]
+    pub identity: Identity,
+    pub username: String,
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub chunk_x: i32,
+    pub chunk_y: i32,
+    pub health: i32,
+    pub max_health: i32,
+    pub mana: i32,
+    pub max_mana: i32,
+    pub level: i32,
+    pub experience: u64,
+    pub equip_weapon: u32,
+    pub equip_helm: u32,
+    pub equip_chest: u32,
+    pub equip_legs: u32,
+    pub equip_boots: u32,
+    pub equip_ring: u32,
+    pub last_seen: u64,
+    pub respawn_x: f32,
+    pub respawn_y: f32,
+}
+
+/// Per-skill experience for each player.
+/// Secondary btree index on player_identity → filter_by_player_identity() generated.
+#[spacetimedb(table)]
+#[spacetimedb(index(btree, player_identity))]
+#[derive(Clone, Debug)]
+pub struct PlayerSkill {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub player_identity: Identity,
+    pub skill_type: String,
+    pub level: i32,
+    pub experience: u64,
+}
+
+/// All living entities: NPCs, mobs, and item drops.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct Entity {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub entity_type: String,
+    pub subtype: String,
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub health: i32,
+    pub max_health: i32,
+    pub is_active: bool,
+    pub drop_item_id: u32,
+    pub drop_quantity: u32,
+}
+
+/// Static item catalog. Seeded in init(), never changes at runtime.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct ItemDefinition {
+    #[primarykey]
+    pub id: u32,
+    pub name: String,
+    pub description: String,
+    pub item_type: String,
+    pub subtype: String,
+    pub stats_json: String,
+    pub stackable: bool,
+    pub max_stack: u32,
+    pub icon_path: String,
+}
+
+/// Player inventory slots. 28 slots per player.
+#[spacetimedb(table)]
+#[spacetimedb(index(btree, player_identity))]
+#[derive(Clone, Debug)]
+pub struct InventorySlot {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub player_identity: Identity,
+    pub slot_index: u32,
+    pub item_id: u32,
+    pub quantity: u32,
+}
+
+/// Terrain data per 32×32-tile chunk. tile_data is a flat Vec<u8> of 1024 bytes.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct WorldChunk {
+    #[primarykey]
+    pub id: u64,
+    pub chunk_x: i32,
+    pub chunk_y: i32,
+    pub tile_data: Vec<u8>,
+    pub entity_seed: u64,
+    pub generated: bool,
+}
+
+/// Short-lived combat events for client animations.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct CombatEvent {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub attacker_id: String,
+    pub target_id: String,
+    pub damage: i32,
+    pub damage_type: String,
+    pub is_critical: bool,
+    pub timestamp: u64,
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SECTION 2: REDUCERS
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Called once when the module is first published to SpacetimeDB.
+#[spacetimedb(init)]
+pub fn init() {
+    log::info!("deadgenre server initializing...");
+    seed_item_catalog();
+    seed_world_entities();
+    log::info!("deadgenre server ready.");
+}
+
+/// Called each time a new WebSocket client connects.
+#[spacetimedb(connect)]
+pub fn client_connected(_ctx: ReducerContext) {
+    log::info!("Client connected.");
+}
+
+/// Called when a client disconnects. Records last_seen timestamp.
+#[spacetimedb(disconnect)]
+pub fn client_disconnected(ctx: ReducerContext) {
+    if let Some(mut player) = Player::filter_by_identity(&ctx.sender) {
+        player.last_seen = ctx.timestamp.into_micros_since_epoch();
+        Player::update_by_identity(&ctx.sender, player);
+    }
+}
+
+/// Register a new player account. Called once per identity.
+#[spacetimedb(reducer)]
+pub fn create_player(ctx: ReducerContext, username: String) {
+    if let Err(msg) = validate_username(&username) {
+        log::warn!("create_player rejected: {}", msg);
+        return;
+    }
+    if Player::filter_by_identity(&ctx.sender).is_some() {
+        log::warn!("create_player: player already exists");
+        return;
+    }
+
+    Player::insert(Player {
+        identity: ctx.sender,
+        username: username.clone(),
+        pos_x: 0.0, pos_y: 0.0,
+        chunk_x: 0, chunk_y: 0,
+        health: 100, max_health: 100,
+        mana: 50, max_mana: 50,
+        level: 1, experience: 0,
+        equip_weapon: 0, equip_helm: 0, equip_chest: 0,
+        equip_legs: 0, equip_boots: 0, equip_ring: 0,
+        last_seen: ctx.timestamp.into_micros_since_epoch(),
+        respawn_x: 0.0, respawn_y: 0.0,
+    }).expect("Failed to insert player");
+
+    let skills = ["melee", "ranged", "magic", "defense", "health", "crafting", "gathering", "agility"];
+    for skill in skills.iter() {
+        PlayerSkill::insert(PlayerSkill {
+            id: 0,
+            player_identity: ctx.sender,
+            skill_type: skill.to_string(),
+            level: 1,
+            experience: 0,
+        }).expect("Failed to insert skill");
+    }
+
+    log::info!("Player created: {}", username);
+}
+
+/// Update the player's authoritative position.
+#[spacetimedb(reducer)]
+pub fn move_player(ctx: ReducerContext, target_x: f32, target_y: f32) {
+    let mut player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => { log::warn!("move_player: player not found"); return; }
+    };
+    let dist = euclidean_dist(player.pos_x, player.pos_y, target_x, target_y);
+    if dist > 600.0 {
+        log::warn!("move_player: distance {:.1} exceeds max 600", dist);
+        return;
+    }
+    player.pos_x = target_x;
+    player.pos_y = target_y;
+    player.chunk_x = (target_x / 1024.0).floor() as i32;
+    player.chunk_y = (target_y / 1024.0).floor() as i32;
+    Player::update_by_identity(&ctx.sender, player);
+}
+
+/// Update the player's respawn location.
+#[spacetimedb(reducer)]
+pub fn set_respawn_point(ctx: ReducerContext, x: f32, y: f32) {
+    if let Some(mut player) = Player::filter_by_identity(&ctx.sender) {
+        player.respawn_x = x;
+        player.respawn_y = y;
+        Player::update_by_identity(&ctx.sender, player);
+    }
+}
+
+/// Attack a mob entity. Validates range, computes damage, broadcasts CombatEvent.
+#[spacetimedb(reducer)]
+pub fn attack_entity(ctx: ReducerContext, entity_id: u64) {
+    let player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => { log::warn!("attack_entity: player not found"); return; }
+    };
+    let mut entity = match Entity::filter_by_id(&entity_id) {
+        Some(e) => e,
+        None => { log::warn!("attack_entity: entity {} not found", entity_id); return; }
+    };
+
+    if !entity.is_active || entity.entity_type != "mob" {
+        return;
+    }
+    let dist = euclidean_dist(player.pos_x, player.pos_y, entity.pos_x, entity.pos_y);
+    if dist > 80.0 {
+        log::warn!("attack_entity: target out of range ({:.1})", dist);
+        return;
+    }
+
+    let melee_level = get_skill_level(&ctx.sender, "melee");
+    let damage = compute_damage(melee_level, player.equip_weapon);
+    let is_crit = damage > melee_level * 3;
+
+    entity.health = (entity.health - damage).max(0);
+
+    CombatEvent::insert(CombatEvent {
+        id: 0,
+        attacker_id: hex_identity(&ctx.sender),
+        target_id: entity_id.to_string(),
+        damage,
+        damage_type: "physical".to_string(),
+        is_critical: is_crit,
+        timestamp: ctx.timestamp.into_micros_since_epoch(),
+    }).expect("Failed to insert combat event");
+
+    if entity.health <= 0 {
+        entity.is_active = false;
+        grant_xp(&ctx.sender, "melee", 25 + entity.max_health as u64 / 2);
+        grant_xp(&ctx.sender, "health", 8 + entity.max_health as u64 / 6);
+
+        if entity.drop_item_id > 0 {
+            Entity::insert(Entity {
+                id: 0,
+                entity_type: "item_drop".to_string(),
+                subtype: format!("drop_{}", entity.drop_item_id),
+                pos_x: entity.pos_x, pos_y: entity.pos_y,
+                health: 1, max_health: 1,
+                is_active: true,
+                drop_item_id: entity.drop_item_id,
+                drop_quantity: entity.drop_quantity,
+            }).expect("Failed to insert drop");
+        }
+        log::info!("Entity {} ({}) killed", entity_id, entity.subtype);
+    }
+
+    Entity::update_by_id(&entity_id, entity);
+}
+
+/// Pick up an item drop lying near the player.
+#[spacetimedb(reducer)]
+pub fn pick_up_item(ctx: ReducerContext, entity_id: u64) {
+    let player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => return,
+    };
+    let mut entity = match Entity::filter_by_id(&entity_id) {
+        Some(e) => e,
+        None => return,
+    };
+    if !entity.is_active || entity.entity_type != "item_drop" {
+        return;
+    }
+    let dist = euclidean_dist(player.pos_x, player.pos_y, entity.pos_x, entity.pos_y);
+    if dist > 64.0 { return; }
+
+    if add_to_inventory(&ctx.sender, entity.drop_item_id, entity.drop_quantity).is_ok() {
+        entity.is_active = false;
+        Entity::update_by_id(&entity_id, entity);
+    }
+}
+
+/// Request terrain data for a chunk. Generates if not yet created.
+#[spacetimedb(reducer)]
+pub fn request_chunk(_ctx: ReducerContext, chunk_x: i32, chunk_y: i32) {
+    let chunk_id = encode_chunk_id(chunk_x, chunk_y);
+    if WorldChunk::filter_by_id(&chunk_id).is_none() {
+        let seed = pcg_hash(chunk_x as u64 ^ (chunk_y as u64).wrapping_mul(2654435761));
+        let tile_data = generate_chunk_tiles(chunk_x, chunk_y, seed);
+        WorldChunk::insert(WorldChunk {
+            id: chunk_id,
+            chunk_x, chunk_y, tile_data,
+            entity_seed: seed, generated: true,
+        }).expect("Failed to insert chunk");
+    }
+}
+
+/// Trigger a skill action (gathering from resource nodes).
+#[spacetimedb(reducer)]
+pub fn use_skill(ctx: ReducerContext, skill: String, target_id: u64) {
+    if Player::filter_by_identity(&ctx.sender).is_none() { return; }
+    let entity = match Entity::filter_by_id(&target_id) {
+        Some(e) => e,
+        None => return,
+    };
+    match skill.as_str() {
+        "gathering" => {
+            if entity.entity_type != "npc" || !entity.subtype.starts_with("resource_") {
+                return;
+            }
+            let qty = 1 + get_skill_level(&ctx.sender, "gathering") as u32 / 10;
+            let _ = add_to_inventory(&ctx.sender, entity.drop_item_id, qty);
+            grant_xp(&ctx.sender, "gathering", 15);
+        }
+        _ => {}
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SECTION 3: INTERNALS
+// ═════════════════════════════════════════════════════════════════════════════
+
+fn encode_chunk_id(chunk_x: i32, chunk_y: i32) -> u64 {
+    ((chunk_x as u64) << 32) | ((chunk_y as u32) as u64)
+}
+
+fn pcg_hash(input: u64) -> u64 {
+    let state = input.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    let word = ((state >> 22) ^ state) >> (((state >> 61) + 22) as u32);
+    word.wrapping_mul(2685821657736338717)
+}
+
+fn generate_chunk_tiles(chunk_x: i32, chunk_y: i32, seed: u64) -> Vec<u8> {
+    const CHUNK_SIZE: usize = 32;
+    let mut tiles = vec![0u8; CHUNK_SIZE * CHUNK_SIZE];
+    for y in 0..CHUNK_SIZE {
+        for x in 0..CHUNK_SIZE {
+            let wx = chunk_x * CHUNK_SIZE as i32 + x as i32;
+            let wy = chunk_y * CHUNK_SIZE as i32 + y as i32;
+            let h1 = pcg_hash(seed ^ pcg_hash(wx as u64));
+            let h2 = pcg_hash(h1 ^ pcg_hash(wy as u64));
+            let h3 = pcg_hash(h2 ^ seed.wrapping_add(7919));
+            let n = (h3 & 0xFFFF) as f32 / 65535.0;
+            let dist = ((wx * wx + wy * wy) as f32).sqrt() / 256.0;
+            tiles[y * CHUNK_SIZE + x] = match (n, dist) {
+                (v, _) if v < 0.08                          => 3, // WATER
+                (v, d) if v < 0.20 && d < 1.5               => 1, // FOREST
+                (v, _) if v < 0.22                          => 5, // DIRT
+                (_, d) if d > 4.0 && pcg_hash(h2) % 4 == 0 => 6, // SNOW
+                (_, d) if d > 3.0 && pcg_hash(h3) % 5 == 0 => 2, // STONE
+                (v, _) if v > 0.88                          => 4, // SAND
+                _                                           => 0, // GRASS
+            };
+        }
+    }
+    tiles
+}
+
+fn xp_to_level(xp: u64) -> i32 {
+    (1.0 + (xp as f64 / 50.0).sqrt()).floor() as i32
+}
+
+fn get_skill_level(identity: &Identity, skill: &str) -> i32 {
+    PlayerSkill::filter_by_player_identity(identity)
+        .find(|s| s.skill_type == skill)
+        .map(|s| s.level)
+        .unwrap_or(1)
+}
+
+fn grant_xp(identity: &Identity, skill: &str, amount: u64) {
+    let existing = PlayerSkill::filter_by_player_identity(identity)
+        .find(|s| s.skill_type == skill);
+    if let Some(mut record) = existing {
+        let old_level = record.level;
+        record.experience = record.experience.saturating_add(amount);
+        record.level = xp_to_level(record.experience);
+        if record.level > old_level {
+            log::info!("Player leveled {} to {}", skill, record.level);
+            if skill == "health" {
+                if let Some(mut player) = Player::filter_by_identity(identity) {
+                    player.max_health = 100 + (record.level - 1) * 10;
+                    player.health = player.max_health;
+                    Player::update_by_identity(identity, player);
+                }
+            }
+        }
+        let rid = record.id;
+        PlayerSkill::update_by_id(&rid, record);
+    }
+}
+
+fn compute_damage(skill_level: i32, weapon_id: u32) -> i32 {
+    let base = 3 + skill_level;
+    let weapon_bonus = if weapon_id > 0 { (weapon_id as i32 % 10) * 2 } else { 0 };
+    (base + weapon_bonus).max(1)
+}
+
+fn euclidean_dist(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
+    ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt()
+}
+
+fn validate_username(username: &str) -> Result<(), String> {
+    if username.len() < 3 || username.len() > 20 {
+        return Err("Username must be 3–20 characters".into());
+    }
+    if !username.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return Err("Username may only contain letters, numbers, and underscores".into());
+    }
+    Ok(())
+}
+
+fn hex_identity(id: &Identity) -> String {
+    let bytes = id.to_vec();
+    bytes.iter().take(4).map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join("")
+}
+
+fn add_to_inventory(identity: &Identity, item_id: u32, quantity: u32) -> Result<(), String> {
+    if item_id == 0 || quantity == 0 { return Ok(()); }
+    let item_def = ItemDefinition::filter_by_id(&item_id)
+        .ok_or_else(|| format!("Unknown item id {}", item_id))?;
+
+    if item_def.stackable {
+        let existing = InventorySlot::filter_by_player_identity(identity)
+            .find(|s| s.item_id == item_id);
+        if let Some(mut slot) = existing {
+            slot.quantity += quantity;
+            let sid = slot.id;
+            InventorySlot::update_by_id(&sid, slot);
+            return Ok(());
+        }
+    }
+
+    let used: std::collections::HashSet<u32> = InventorySlot::filter_by_player_identity(identity)
+        .map(|s| s.slot_index)
+        .collect();
+    let empty_slot = (0..28u32).find(|i| !used.contains(i))
+        .ok_or("Inventory is full")?;
+
+    InventorySlot::insert(InventorySlot {
+        id: 0,
+        player_identity: *identity,
+        slot_index: empty_slot,
+        item_id, quantity,
+    }).expect("Failed to insert inventory slot");
+    Ok(())
+}
+
+fn seed_item_catalog() {
+    macro_rules! item {
+        ($id:expr, $name:expr, $desc:expr, $type:expr, $sub:expr, $stats:expr, $stack:expr, $max:expr) => {
+            if ItemDefinition::filter_by_id(&$id).is_none() {
+                ItemDefinition::insert(ItemDefinition {
+                    id: $id, name: $name.into(), description: $desc.into(),
+                    item_type: $type.into(), subtype: $sub.into(),
+                    stats_json: $stats.into(), stackable: $stack, max_stack: $max,
+                    icon_path: "".into(),
+                }).expect("item insert failed");
+            }
+        };
+    }
+    item!(1,  "Worn Sword",          "A battered blade.",           "weapon",     "melee_1h",    r#"{"attack":3}"#,   false, 1);
+    item!(2,  "Iron Sword",          "Solid iron, reliable edge.",  "weapon",     "melee_1h",    r#"{"attack":8}"#,   false, 1);
+    item!(3,  "Oak Shortbow",        "Quick at range.",             "weapon",     "ranged_bow",  r#"{"attack":6}"#,   false, 1);
+    item!(4,  "Apprentice Staff",    "Channels raw mana.",          "weapon",     "magic_staff", r#"{"attack":5}"#,   false, 1);
+    item!(10, "Leather Helm",        "Scraped hide cap.",           "armor",      "helm",        r#"{"defense":2}"#,  false, 1);
+    item!(11, "Leather Chest",       "Covers the torso.",           "armor",      "chest",       r#"{"defense":4}"#,  false, 1);
+    item!(20, "Minor Health Potion", "Restores 30 HP.",             "consumable", "potion_hp",   r#"{"heal_hp":30}"#, true,  30);
+    item!(21, "Minor Mana Potion",   "Restores 20 mana.",           "consumable", "potion_mana", r#"{"heal_mana":20}"#,true, 30);
+    item!(30, "Copper Ore",          "Raw copper.",                 "material",   "ore",         r#"{"tier":1}"#,     true,  1000);
+    item!(31, "Iron Ore",            "Dense iron ore.",             "material",   "ore",         r#"{"tier":2}"#,     true,  1000);
+    item!(32, "Oak Log",             "Sturdy oak log.",             "material",   "wood",        r#"{"tier":1}"#,     true,  1000);
+    item!(33, "Raw Fish",            "Needs cooking.",              "material",   "fish",        r#"{"tier":1}"#,     true,  500);
+}
+
+fn seed_world_entities() {
+    let goblins: &[(f32, f32)] = &[
+        (160.0, 96.0), (256.0, 160.0), (-128.0, 192.0),
+        (320.0, -96.0), (-192.0, -160.0), (96.0, 320.0),
+    ];
+    for (x, y) in goblins.iter() {
+        Entity::insert(Entity {
+            id: 0, entity_type: "mob".into(), subtype: "goblin".into(),
+            pos_x: *x, pos_y: *y, health: 40, max_health: 40,
+            is_active: true, drop_item_id: 30, drop_quantity: 1,
+        }).expect("goblin insert failed");
+    }
+
+    Entity::insert(Entity {
+        id: 0, entity_type: "npc".into(), subtype: "merchant_alice".into(),
+        pos_x: 64.0, pos_y: 32.0, health: 100, max_health: 100,
+        is_active: true, drop_item_id: 0, drop_quantity: 0,
+    }).expect("merchant insert failed");
+
+    let resources: &[(&str, f32, f32, u32)] = &[
+        ("resource_oak_tree",  200.0,  50.0, 32),
+        ("resource_oak_tree", -150.0,  80.0, 32),
+        ("resource_copper",    180.0,-120.0, 30),
+        ("resource_copper",   -200.0, -80.0, 30),
+        ("resource_fish_spot",   0.0, 250.0, 33),
+    ];
+    for (subtype, x, y, item_id) in resources.iter() {
+        Entity::insert(Entity {
+            id: 0, entity_type: "npc".into(), subtype: subtype.to_string(),
+            pos_x: *x, pos_y: *y, health: 1, max_health: 1,
+            is_active: true, drop_item_id: *item_id, drop_quantity: 1,
+        }).expect("resource insert failed");
+    }
+}

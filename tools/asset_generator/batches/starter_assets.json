@@ -1,0 +1,14 @@
+{
+    "_comment": "Starter area assets — basic gear and common world tiles",
+    "category": "items",
+    "style": "pixel_art_32",
+    "context": "starter village area, simple affordable equipment, worn but reliable",
+    "items": [
+        "worn_sword",
+        "leather_helm",
+        "leather_chest",
+        "minor_health_potion",
+        "copper_ore",
+        "oak_log"
+    ]
+}
