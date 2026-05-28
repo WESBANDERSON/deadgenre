@@ -95,3 +95,9 @@ func _on_death() -> void:
 
 func get_entity_id() -> int:
 	return entity_id
+
+func get_entity_type() -> String:
+	return entity_type
+
+func get_subtype() -> String:
+	return subtype

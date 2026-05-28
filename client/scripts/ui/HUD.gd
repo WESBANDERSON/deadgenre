@@ -7,14 +7,11 @@
 ##   Right edge  → Skill panel toggle button
 ##   Top-left    → Notification area (temporary messages)
 ##   Minimap     → Procedurally-drawn minimap (top-right)
+##   Right-center → Inventory panel (toggle with I)
+##   Left-center  → Crafting panel (toggle with C)
 ##
 ## All layout is built in code for AI-readability and iteration speed.
 ## Replace with proper .tscn scene nodes once the design is locked.
-##
-## EXTENSION POINTS:
-##   _build_inventory_panel()   → add full inventory grid
-##   _build_skills_panel()      → add all 8 skill bars
-##   _build_minimap()           → add real minimap rendering
 class_name HUD
 extends CanvasLayer
 
@@ -29,6 +26,8 @@ var _notification_label: Label = null
 var _notification_timer: float = 0.0
 var _status_label: Label = null
 var _minimap: Control = null
+var _inventory_panel: InventoryPanel = null
+var _crafting_panel: CraftingPanel = null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Notification Queue
@@ -68,6 +67,8 @@ func _build_hud() -> void:
 	_build_notification_area(root)
 	_build_status_indicator(root)
 	_build_minimap(root)
+	_build_inventory_panel(root)
+	_build_crafting_panel(root)
 
 func _build_vitals_panel(root: Control) -> void:
 	var panel := PanelContainer.new()
@@ -189,6 +190,24 @@ func _build_minimap(root: Control) -> void:
 	_minimap.draw.connect(_draw_minimap.bind(_minimap))
 	_minimap.clip_contents = true
 	root.add_child(_minimap)
+
+func _build_inventory_panel(root: Control) -> void:
+	_inventory_panel = InventoryPanel.new()
+	_inventory_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	_inventory_panel.offset_right = -10
+	_inventory_panel.offset_left = -270
+	_inventory_panel.offset_top = -200
+	_inventory_panel.offset_bottom = 200
+	root.add_child(_inventory_panel)
+
+func _build_crafting_panel(root: Control) -> void:
+	_crafting_panel = CraftingPanel.new()
+	_crafting_panel.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	_crafting_panel.offset_left = 10
+	_crafting_panel.offset_right = 350
+	_crafting_panel.offset_top = -190
+	_crafting_panel.offset_bottom = 190
+	root.add_child(_crafting_panel)
 
 func _draw_minimap(map: Control) -> void:
 	var size := map.size

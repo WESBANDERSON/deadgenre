@@ -60,11 +60,18 @@ signal combat_entered(target: Node)
 signal combat_exited
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Inventory
+# Inventory & Equipment
 # ─────────────────────────────────────────────────────────────────────────────
 signal inventory_changed
 signal item_picked_up(item_name: String, quantity: int)
 signal inventory_full
+signal equipment_changed
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Crafting
+# ─────────────────────────────────────────────────────────────────────────────
+signal crafting_started(recipe_id: int)
+signal crafting_completed(recipe_id: int, item_name: String)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UI

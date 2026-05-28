@@ -65,6 +65,7 @@ func _connect_signals() -> void:
 	EventBus.player_moved.connect(_on_player_moved)
 	EventBus.entity_spawned.connect(_on_entity_spawned)
 	EventBus.entity_despawned.connect(_on_entity_despawned)
+	EventBus.local_player_respawned.connect(_on_player_respawned)
 	NetworkManager.chunk_received.connect(_on_chunk_received)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +163,13 @@ func _spawn_entity(entity_id: int, entity_type: String, subtype: String, pos: Ve
 		node.initialize(entity_id, entity_type, subtype)
 
 	return node
+
+func _on_player_respawned(position: Vector2) -> void:
+	if local_player:
+		local_player.global_position = position
+		local_player.is_moving = false
+		local_player.move_path = []
+		_update_loaded_chunks(_world_to_chunk(position))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Coordinate Helpers

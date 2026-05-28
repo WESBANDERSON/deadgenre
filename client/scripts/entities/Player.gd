@@ -95,8 +95,33 @@ func _handle_left_click(world_pos: Vector2) -> void:
 	# Otherwise: move to clicked position
 	_request_move(world_pos)
 
-func _handle_right_click(_world_pos: Vector2) -> void:
-	pass  # Context menu or secondary action — extend here
+func _handle_right_click(world_pos: Vector2) -> void:
+	var entities := get_tree().get_nodes_in_group("entities")
+	for entity in entities:
+		if not entity.has_method("get_entity_id"):
+			continue
+		var dist := world_pos.distance_to(entity.global_position)
+		if dist > 32.0:
+			continue
+		if entity.has_method("get_entity_type"):
+			var etype: String = entity.get_entity_type()
+			var subtype: String = entity.get_subtype() if entity.has_method("get_subtype") else ""
+			if etype == "npc" and subtype.begins_with("resource_"):
+				_interact_with_resource(entity)
+				return
+			elif etype == "mob":
+				CombatSystem.request_attack(self, entity)
+				return
+			elif etype == "item_drop":
+				NetworkManager.pick_up_item(entity.get_entity_id())
+				return
+
+func _interact_with_resource(entity: Node) -> void:
+	var my_dist := global_position.distance_to(entity.global_position)
+	if my_dist > 80.0:
+		_request_move(entity.global_position)
+		await get_tree().create_timer(0.5).timeout
+	NetworkManager.use_skill("gathering", entity.get_entity_id())
 
 func _handle_hotbar_input(event: InputEventKey) -> void:
 	# Map number keys 1–8 to hotbar slots
