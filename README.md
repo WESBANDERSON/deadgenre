@@ -119,8 +119,12 @@ The game is designed to grow in tiers. Current foundation:
 | Crafting | ✅ | Recipe-based crafting with 6 starter recipes |
 | Gathering | ✅ | Resource node interaction, XP, item drops |
 | Death/Respawn | ✅ | Death screen, 10% resource drop, respawn flow |
+| NPC Dialogue | ✅ | Data-driven dialogue trees with choices |
+| Quests | ✅ | 3 starter quests, accept/progress/complete flow |
+| Loot Tables | ✅ | Weighted random drops per mob type |
+| Mob Respawn | ✅ | Timer-based 30s respawn system |
+| Login Flow | ✅ | Character name entry, validation, game state |
 | AI assets | ✅ | Generation pipeline for any category |
-| NPC dialogue | 🔜 | Dialogue trees, AI-generated lines |
 | Guilds | 🔜 | Territory control, guild banks |
 | Economy | 🔜 | Player-driven market |
 
@@ -197,10 +201,10 @@ Gameplay logic and content IDs remain stable while presentation quality evolves.
 - Gather → craft → equip chain ✅ (gathering interaction, crafting recipes + UI, equip flow)
 - Death / respawn loop ✅ (player_died reducer, DeathScreen, resource drops)
 
-### Milestone 2 — Living World
-- NPC services and dialogue
-- Monster spawns + loot tables
-- Quest chain
+### Milestone 2 — Living World 🔄
+- NPC services and dialogue ✅ (data-driven dialogue trees)
+- Monster spawns + loot tables ✅ (weighted drops, 30s respawn)
+- Quest chain ✅ (3 starter quests with multi-step objectives)
 - Market board + trade settlement
 
 ### Milestone 3 — Content Pipeline

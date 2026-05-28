@@ -393,20 +393,23 @@ pub fn attack_entity(ctx: ReducerContext, entity_id: u64) {
         grant_xp(&ctx.sender, "melee", 25 + entity.max_health as u64 / 2);
         grant_xp(&ctx.sender, "health", 8 + entity.max_health as u64 / 6);
 
-        if entity.drop_item_id > 0 {
+        // Roll loot table if available, else use hardcoded drop
+        let drop = roll_loot_table(&entity.subtype, ctx.timestamp.into_micros_since_epoch());
+        let (drop_id, drop_qty) = drop.unwrap_or((entity.drop_item_id, entity.drop_quantity));
+
+        if drop_id > 0 {
             Entity::insert(Entity {
                 id: 0,
                 entity_type: "item_drop".to_string(),
-                subtype: format!("drop_{}", entity.drop_item_id),
+                subtype: format!("drop_{}", drop_id),
                 pos_x: entity.pos_x, pos_y: entity.pos_y,
                 health: 1, max_health: 1,
                 is_active: true,
-                drop_item_id: entity.drop_item_id,
-                drop_quantity: entity.drop_quantity,
+                drop_item_id: drop_id,
+                drop_quantity: drop_qty,
             }).expect("Failed to insert drop");
         }
 
-        // Schedule respawn (30 seconds)
         MobRespawn::insert(MobRespawn {
             id: 0,
             subtype: entity.subtype.clone(),
@@ -416,7 +419,7 @@ pub fn attack_entity(ctx: ReducerContext, entity_id: u64) {
             drop_item_id: entity.drop_item_id,
             drop_quantity: entity.drop_quantity,
             died_at: ctx.timestamp.into_micros_since_epoch(),
-            respawn_after: 30_000_000, // 30 seconds in microseconds
+            respawn_after: 30_000_000,
         }).expect("Failed to schedule respawn");
 
         log::info!("Entity {} ({}) killed, respawn scheduled", entity_id, entity.subtype);
@@ -968,6 +971,39 @@ fn compute_damage(skill_level: i32, weapon_id: u32) -> i32 {
 
 fn euclidean_dist(x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
     ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt()
+}
+
+/// Roll a loot table for a given mob subtype. Returns (item_id, quantity) or None for no drop.
+fn roll_loot_table(mob_subtype: &str, timestamp_seed: u64) -> Option<(u32, u32)> {
+    let loot = LootTable::iter().find(|lt| lt.entity_subtype == mob_subtype)?;
+    let entries: Vec<(u32, u32, u32)> = loot.entries_json
+        .split(';')
+        .filter_map(|entry| {
+            let parts: Vec<&str> = entry.split(':').collect();
+            if parts.len() == 3 {
+                Some((parts[0].parse().ok()?, parts[1].parse().ok()?, parts[2].parse().ok()?))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if entries.is_empty() {
+        return None;
+    }
+
+    let total_weight: u32 = entries.iter().map(|e| e.2).sum();
+    let roll = (pcg_hash(timestamp_seed) % total_weight as u64) as u32;
+
+    let mut cumulative = 0u32;
+    for (item_id, quantity, weight) in &entries {
+        cumulative += weight;
+        if roll < cumulative {
+            return Some((*item_id, *quantity));
+        }
+    }
+    // "Nothing" drop if total_weight < 100 and roll lands beyond entries
+    None
 }
 
 fn validate_username(username: &str) -> Result<(), String> {
