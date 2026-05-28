@@ -28,6 +28,9 @@ var _status_label: Label = null
 var _minimap: Control = null
 var _inventory_panel: InventoryPanel = null
 var _crafting_panel: CraftingPanel = null
+var _dialogue_panel: DialoguePanel = null
+var _quest_panel: QuestPanel = null
+var _quest_tracker: QuestTracker = null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Notification Queue
@@ -69,6 +72,9 @@ func _build_hud() -> void:
 	_build_minimap(root)
 	_build_inventory_panel(root)
 	_build_crafting_panel(root)
+	_build_dialogue_panel(root)
+	_build_quest_panel(root)
+	_build_quest_tracker(root)
 
 func _build_vitals_panel(root: Control) -> void:
 	var panel := PanelContainer.new()
@@ -208,6 +214,29 @@ func _build_crafting_panel(root: Control) -> void:
 	_crafting_panel.offset_top = -190
 	_crafting_panel.offset_bottom = 190
 	root.add_child(_crafting_panel)
+
+func _build_dialogue_panel(root: Control) -> void:
+	_dialogue_panel = DialoguePanel.new()
+	root.add_child(_dialogue_panel)
+
+func _build_quest_panel(root: Control) -> void:
+	_quest_panel = QuestPanel.new()
+	_quest_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_quest_panel.offset_left = -190
+	_quest_panel.offset_right = 190
+	_quest_panel.offset_top = -170
+	_quest_panel.offset_bottom = 170
+	root.add_child(_quest_panel)
+
+func _build_quest_tracker(root: Control) -> void:
+	_quest_tracker = QuestTracker.new()
+	_quest_tracker.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_quest_tracker.offset_right = -10
+	_quest_tracker.offset_left = -180
+	_quest_tracker.offset_top = 160
+	_quest_tracker.offset_bottom = 320
+	_quest_tracker.set_quest_panel(_quest_panel)
+	root.add_child(_quest_tracker)
 
 func _draw_minimap(map: Control) -> void:
 	var size := map.size

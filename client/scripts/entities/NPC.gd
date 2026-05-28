@@ -59,12 +59,12 @@ func _draw() -> void:
 func _on_interact() -> void:
 	match service_type:
 		"merchant":
-			EventBus.panel_toggle_requested.emit("merchant")
-			if dialogue_lines.size() > 0:
-				EventBus.notification_shown.emit(dialogue_lines.pick_random(), "info")
+			EventBus.dialogue_started.emit(subtype)
 		"gathering":
 			NetworkManager.use_skill("gathering", entity_id)
 			EventBus.notification_shown.emit("You gather from the " + label_text + ".", "info")
 		_:
-			if dialogue_lines.size() > 0:
+			if subtype != "":
+				EventBus.dialogue_started.emit(subtype)
+			elif dialogue_lines.size() > 0:
 				EventBus.notification_shown.emit(dialogue_lines.pick_random(), "info")

@@ -186,6 +186,87 @@ On death:
 
 ---
 
+## NPC Dialogue
+
+**Implemented** with data-driven dialogue trees stored in `DialogueNode` table.
+
+**Dialogue node structure**:
+- `id`: unique node ID
+- `npc_subtype`: which NPC this belongs to
+- `text`: what the NPC says
+- `choices`: semicolon-delimited choice labels the player can pick
+- `choice_targets`: semicolon-delimited target node IDs (0 = end conversation)
+- `is_root`: whether this is the entry point for the NPC
+
+**Client flow**:
+1. Player interacts with NPC → `EventBus.dialogue_started` fires with NPC subtype
+2. `DialoguePanel` finds the root node and displays text + choices
+3. Player clicks a choice → panel advances to the target node
+4. Target of 0 closes the dialogue
+5. Negative targets trigger quest actions via `EventBus.quest_action_triggered`
+
+---
+
+## Quests
+
+**Implemented** with `QuestDefinition`, `PlayerQuest` tables and accept/progress reducers.
+
+**Quest definition structure**:
+- `id`, `name`, `description`, `giver_npc`
+- `steps_json`: semicolon-delimited human-readable step descriptions
+- `objectives_json`: semicolon-delimited `type:target:quantity` per step
+  - Types: `kill` (mob subtype), `gather` (item_id), `talk` (npc_subtype), `craft` (recipe_id)
+- `reward_xp_skill`, `reward_xp_amount`, `reward_item_id`, `reward_item_qty`
+- `required_level`: minimum player level to accept
+
+**Quest flow**:
+1. Player talks to NPC → dialogue offers quest → player accepts
+2. `accept_quest(quest_id)` reducer validates and creates `PlayerQuest` row
+3. As player kills/gathers/crafts, `report_quest_progress(quest_id, amount)` advances progress
+4. When all steps complete, rewards are granted automatically
+5. Client `QuestPanel` (J key) shows full log; `QuestTracker` shows active objectives on-screen
+
+**Starter quests**:
+| ID | Name | Steps | Rewards |
+|----|------|-------|---------|
+| 1 | Goblin Trouble | Kill 3 goblins → Collect 5 Copper Ore → Return to Alice | 100 melee XP + Iron Sword |
+| 2 | Lumberjack's Start | Gather 10 Oak Logs → Return to Alice | 75 gathering XP + 5 Oak Logs |
+| 3 | Brew Master Apprentice | Gather 4 Raw Fish → Craft Health Potions → Return to Alice | 60 crafting XP + 5 Health Potions |
+
+---
+
+## Loot Tables
+
+**Implemented** with `LootTable` table and `roll_loot_table()` internal function.
+
+**Loot table structure**:
+- `id`, `entity_subtype`: which mob type this table belongs to
+- `entries_json`: semicolon-delimited `item_id:quantity:weight` entries
+  - Weight is relative; roll is `random % total_weight`
+  - If total weight < 100, remaining weight = "nothing drops"
+
+**Current tables**:
+| Mob | Drops |
+|-----|-------|
+| goblin | Copper Ore (60%), Health Pot (15%), Worn Sword (5%), nothing (20%) |
+| goblin_shaman | Iron Ore (50%), Mana Pot (20%), Staff (8%), nothing (22%) |
+| skeleton | Iron Ore ×2 (45%), Iron Sword (10%), Leather Helm (12%), nothing (33%) |
+| wolf | Raw Fish ×2 (70%), Copper Ore (20%), nothing (10%) |
+
+---
+
+## Mob Respawn
+
+**Implemented** with `MobRespawn` table and `process_respawns` reducer.
+
+When a mob dies:
+1. `MobRespawn` row is created with the mob's position, subtype, stats, and death timestamp
+2. `respawn_after` is set to 30 seconds (configurable per mob type in future)
+3. Any connected client can call `process_respawns` periodically
+4. When `now >= died_at + respawn_after`, the mob is re-inserted as a fresh Entity
+
+---
+
 ## Chat (Planned)
 
 Channels: `All, Local (32-tile range), Guild, Party, Trade`

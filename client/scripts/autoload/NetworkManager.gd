@@ -242,17 +242,24 @@ func _on_player_skill_row(row: Dictionary, _is_insert: bool) -> void:
 # Offline Mode — client-side simulation for development without a server
 # ─────────────────────────────────────────────────────────────────────────────
 func _setup_offline_mode() -> void:
-	# Emit a fake connected signal so systems start normally
 	is_connected = true
 	GameManager.session_identity = "offline_player"
 	EventBus.connected_to_server.emit()
 
-	# Emit initial player stats
+	# Show character select if no saved name
+	var saved_name: String = GameManager.settings.get("player_name", "")
+	if saved_name == "":
+		GameManager.game_state = GameManager.GameState.CHARACTER_SELECT
+	else:
+		GameManager.game_state = GameManager.GameState.PLAYING
+
 	await get_tree().process_frame
+	_seed_offline_data()
+
+func _seed_offline_data() -> void:
 	EventBus.player_health_changed.emit(null, 100, 100)
 	EventBus.player_mana_changed.emit(null, 50, 50)
 
-	# Seed offline skill data
 	var skills = ["melee", "ranged", "magic", "defense", "health", "crafting", "gathering", "agility"]
 	for skill in skills:
 		EventBus.player_skill_leveled.emit(skill, 1)
@@ -276,6 +283,9 @@ func _setup_offline_mode() -> void:
 	]
 	for r in resources:
 		EventBus.entity_spawned.emit(r[0], r[1], r[2], r[3])
+
+	# Spawn merchant NPC
+	EventBus.entity_spawned.emit(3000, "npc", "merchant_alice", Vector2(64, 32))
 
 	# Seed item definitions for offline inventory display
 	var items := [
