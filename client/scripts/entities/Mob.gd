@@ -27,6 +27,16 @@ func _configure_from_subtype() -> void:
 			body_radius = 9.0
 			max_health  = 60
 			health      = 60
+		"skeleton":
+			body_color  = Color(0.80, 0.80, 0.75)
+			body_radius = 10.0
+			max_health  = 50
+			health      = 50
+		"wolf":
+			body_color  = Color(0.45, 0.35, 0.25)
+			body_radius = 8.0
+			max_health  = 30
+			health      = 30
 		_:
 			body_color  = Color(0.70, 0.20, 0.20)
 			body_radius = 10.0

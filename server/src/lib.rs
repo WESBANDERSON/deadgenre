@@ -233,6 +233,22 @@ pub struct LootTable {
     pub entries_json: String,
 }
 
+/// Spawn zone definitions. Define regions where mobs spawn with density control.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct SpawnZone {
+    #[primarykey]
+    pub id: u32,
+    pub name: String,
+    pub center_x: f32,
+    pub center_y: f32,
+    pub radius: f32,
+    /// Semicolon-delimited mob entries: "subtype:count:max_health"
+    pub mob_list: String,
+    pub max_active: u32,
+    pub respawn_seconds: u32,
+}
+
 /// Crafting recipes. Seeded at init, defines what can be crafted.
 /// ingredients_json format: "item_id:quantity;item_id:quantity" (simple semicolon-delimited pairs)
 #[spacetimedb(table)]
@@ -261,6 +277,7 @@ pub fn init() {
     seed_item_catalog();
     seed_crafting_recipes();
     seed_loot_tables();
+    seed_spawn_zones();
     seed_dialogues();
     seed_quests();
     seed_world_entities();
@@ -519,6 +536,62 @@ pub fn process_respawns(ctx: ReducerContext) {
             let rid = respawn.id;
             MobRespawn::delete_by_id(&rid);
             log::info!("Mob {} respawned at ({}, {})", respawn.subtype, respawn.pos_x, respawn.pos_y);
+        }
+    }
+}
+
+/// Tick spawn zones: ensure each zone has its target mob count.
+/// Called periodically by connected clients (every ~5s is fine).
+#[spacetimedb(reducer)]
+pub fn tick_spawn_zones(ctx: ReducerContext) {
+    let timestamp = ctx.timestamp.into_micros_since_epoch();
+    let zones: Vec<SpawnZone> = SpawnZone::iter().collect();
+
+    for zone in zones {
+        let mobs_in_zone: usize = Entity::iter()
+            .filter(|e| e.entity_type == "mob" && e.is_active
+                && euclidean_dist(e.pos_x, e.pos_y, zone.center_x, zone.center_y) <= zone.radius)
+            .count();
+
+        if mobs_in_zone >= zone.max_active as usize {
+            continue;
+        }
+
+        let entries: Vec<(&str, u32, i32)> = zone.mob_list.split(';')
+            .filter_map(|entry| {
+                let parts: Vec<&str> = entry.split(':').collect();
+                if parts.len() == 3 {
+                    Some((parts[0], parts[1].parse().ok()?, parts[2].parse().ok()?))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let needed = zone.max_active as usize - mobs_in_zone;
+        let mut spawned = 0;
+        for (subtype, _target_count, max_hp) in &entries {
+            if spawned >= needed { break; }
+            let angle_seed = pcg_hash(timestamp.wrapping_add(spawned as u64 * 7919));
+            let angle = (angle_seed % 360) as f32 * std::f32::consts::PI / 180.0;
+            let dist_seed = pcg_hash(angle_seed);
+            let dist = (dist_seed % (zone.radius as u64).max(1)) as f32 * 0.7;
+            let spawn_x = zone.center_x + angle.cos() * dist;
+            let spawn_y = zone.center_y + angle.sin() * dist;
+
+            Entity::insert(Entity {
+                id: 0,
+                entity_type: "mob".to_string(),
+                subtype: subtype.to_string(),
+                pos_x: spawn_x,
+                pos_y: spawn_y,
+                health: *max_hp,
+                max_health: *max_hp,
+                is_active: true,
+                drop_item_id: 0,
+                drop_quantity: 0,
+            }).expect("Failed to spawn zone mob");
+            spawned += 1;
         }
     }
 }
@@ -1098,6 +1171,23 @@ fn seed_crafting_recipes() {
     recipe!(4, "Leather Chest","Assemble a leather chest piece.",        11, 1, "30:4",      2, 30, "armorcrafting");
     recipe!(5, "Minor Health Potion", "Brew a healing potion.",          20, 3, "33:2;30:1", 1, 15, "alchemy");
     recipe!(6, "Minor Mana Potion",   "Brew a mana potion.",            21, 3, "33:2;31:1", 2, 18, "alchemy");
+}
+
+fn seed_spawn_zones() {
+    macro_rules! zone {
+        ($id:expr, $name:expr, $cx:expr, $cy:expr, $r:expr, $mobs:expr, $max:expr, $respawn:expr) => {
+            if SpawnZone::filter_by_id(&$id).is_none() {
+                SpawnZone::insert(SpawnZone {
+                    id: $id, name: $name.into(),
+                    center_x: $cx, center_y: $cy, radius: $r,
+                    mob_list: $mobs.into(), max_active: $max, respawn_seconds: $respawn,
+                }).expect("zone insert failed");
+            }
+        };
+    }
+    zone!(1, "Goblin Camp",    200.0,  150.0, 180.0, "goblin:4:40;goblin_shaman:1:60", 5, 30);
+    zone!(2, "Eastern Woods",  350.0, -100.0, 150.0, "goblin:3:40;wolf:2:30",          4, 25);
+    zone!(3, "Southern Ruins", -180.0, -200.0, 200.0, "skeleton:3:50;goblin:2:40",      5, 35);
 }
 
 fn seed_loot_tables() {
