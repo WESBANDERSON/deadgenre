@@ -133,6 +133,23 @@ pub struct WorldChunk {
     pub generated: bool,
 }
 
+/// Tracks dead mobs for respawn scheduling.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct MobRespawn {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub subtype: String,
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub max_health: i32,
+    pub drop_item_id: u32,
+    pub drop_quantity: u32,
+    pub died_at: u64,
+    pub respawn_after: u64,
+}
+
 /// Short-lived combat events for client animations.
 #[spacetimedb(table)]
 #[derive(Clone, Debug)]
@@ -146,6 +163,74 @@ pub struct CombatEvent {
     pub damage_type: String,
     pub is_critical: bool,
     pub timestamp: u64,
+}
+
+/// NPC dialogue nodes. Each NPC has a dialogue tree stored as linked nodes.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct DialogueNode {
+    #[primarykey]
+    pub id: u32,
+    pub npc_subtype: String,
+    pub text: String,
+    /// Semicolon-delimited choice labels: "label1;label2;label3"
+    pub choices: String,
+    /// Semicolon-delimited target node IDs for each choice: "id1;id2;id3"
+    /// Use "0" for end of conversation, negative for quest actions
+    pub choice_targets: String,
+    pub is_root: bool,
+}
+
+/// Quest definitions. Static content seeded at init.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct QuestDefinition {
+    #[primarykey]
+    pub id: u32,
+    pub name: String,
+    pub description: String,
+    pub giver_npc: String,
+    /// Semicolon-delimited step descriptions
+    pub steps_json: String,
+    /// Semicolon-delimited objectives: "type:target:quantity" per step
+    /// Types: kill, gather, talk, craft
+    pub objectives_json: String,
+    pub reward_xp_skill: String,
+    pub reward_xp_amount: u64,
+    pub reward_item_id: u32,
+    pub reward_item_qty: u32,
+    pub required_level: i32,
+}
+
+/// Per-player quest progress. One row per active/completed quest per player.
+#[spacetimedb(table)]
+#[spacetimedb(index(btree, player_identity))]
+#[derive(Clone, Debug)]
+pub struct PlayerQuest {
+    #[primarykey]
+    #[autoinc]
+    pub id: u64,
+    pub player_identity: Identity,
+    pub quest_id: u32,
+    pub current_step: u32,
+    /// Tracks progress on the current step's objective
+    pub progress: u32,
+    /// "active" | "completed" | "failed"
+    pub status: String,
+    pub accepted_at: u64,
+    pub completed_at: u64,
+}
+
+/// Loot table definitions. Maps entity subtypes to weighted drop lists.
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct LootTable {
+    #[primarykey]
+    pub id: u32,
+    pub entity_subtype: String,
+    /// Semicolon-delimited entries: "item_id:quantity:weight"
+    /// Weight is relative (e.g. 80 out of 100 total = 80% chance)
+    pub entries_json: String,
 }
 
 /// Crafting recipes. Seeded at init, defines what can be crafted.
@@ -175,6 +260,9 @@ pub fn init() {
     log::info!("deadgenre server initializing...");
     seed_item_catalog();
     seed_crafting_recipes();
+    seed_loot_tables();
+    seed_dialogues();
+    seed_quests();
     seed_world_entities();
     log::info!("deadgenre server ready.");
 }
@@ -317,7 +405,21 @@ pub fn attack_entity(ctx: ReducerContext, entity_id: u64) {
                 drop_quantity: entity.drop_quantity,
             }).expect("Failed to insert drop");
         }
-        log::info!("Entity {} ({}) killed", entity_id, entity.subtype);
+
+        // Schedule respawn (30 seconds)
+        MobRespawn::insert(MobRespawn {
+            id: 0,
+            subtype: entity.subtype.clone(),
+            pos_x: entity.pos_x,
+            pos_y: entity.pos_y,
+            max_health: entity.max_health,
+            drop_item_id: entity.drop_item_id,
+            drop_quantity: entity.drop_quantity,
+            died_at: ctx.timestamp.into_micros_since_epoch(),
+            respawn_after: 30_000_000, // 30 seconds in microseconds
+        }).expect("Failed to schedule respawn");
+
+        log::info!("Entity {} ({}) killed, respawn scheduled", entity_id, entity.subtype);
     }
 
     Entity::update_by_id(&entity_id, entity);
@@ -389,6 +491,32 @@ pub fn use_skill(ctx: ReducerContext, skill: String, target_id: u64) {
             grant_xp(&ctx.sender, "gathering", 15);
         }
         _ => {}
+    }
+}
+
+/// Process pending mob respawns. Called periodically by any connected client.
+#[spacetimedb(reducer)]
+pub fn process_respawns(ctx: ReducerContext) {
+    let now = ctx.timestamp.into_micros_since_epoch();
+    let pending: Vec<MobRespawn> = MobRespawn::iter().collect();
+    for respawn in pending {
+        if now >= respawn.died_at + respawn.respawn_after {
+            Entity::insert(Entity {
+                id: 0,
+                entity_type: "mob".to_string(),
+                subtype: respawn.subtype.clone(),
+                pos_x: respawn.pos_x,
+                pos_y: respawn.pos_y,
+                health: respawn.max_health,
+                max_health: respawn.max_health,
+                is_active: true,
+                drop_item_id: respawn.drop_item_id,
+                drop_quantity: respawn.drop_quantity,
+            }).expect("Failed to respawn mob");
+            let rid = respawn.id;
+            MobRespawn::delete_by_id(&rid);
+            log::info!("Mob {} respawned at ({}, {})", respawn.subtype, respawn.pos_x, respawn.pos_y);
+        }
     }
 }
 
@@ -660,6 +788,105 @@ pub fn drop_item(ctx: ReducerContext, slot_index: u32, quantity: u32) {
     }
 }
 
+/// Accept a quest from an NPC.
+#[spacetimedb(reducer)]
+pub fn accept_quest(ctx: ReducerContext, quest_id: u32) {
+    if Player::filter_by_identity(&ctx.sender).is_none() {
+        return;
+    }
+    let quest = match QuestDefinition::filter_by_id(&quest_id) {
+        Some(q) => q,
+        None => { log::warn!("accept_quest: unknown quest {}", quest_id); return; }
+    };
+
+    // Check if already accepted or completed
+    let existing = PlayerQuest::filter_by_player_identity(&ctx.sender)
+        .find(|pq| pq.quest_id == quest_id);
+    if let Some(pq) = existing {
+        if pq.status == "active" || pq.status == "completed" {
+            log::warn!("accept_quest: quest {} already {}", quest_id, pq.status);
+            return;
+        }
+    }
+
+    let player_level = Player::filter_by_identity(&ctx.sender)
+        .map(|p| p.level).unwrap_or(1);
+    if player_level < quest.required_level {
+        log::warn!("accept_quest: level {} < required {}", player_level, quest.required_level);
+        return;
+    }
+
+    PlayerQuest::insert(PlayerQuest {
+        id: 0,
+        player_identity: ctx.sender,
+        quest_id,
+        current_step: 0,
+        progress: 0,
+        status: "active".to_string(),
+        accepted_at: ctx.timestamp.into_micros_since_epoch(),
+        completed_at: 0,
+    }).expect("Failed to insert quest");
+    log::info!("Player accepted quest: {}", quest.name);
+}
+
+/// Report progress on a quest objective. Called after kills, gathers, etc.
+#[spacetimedb(reducer)]
+pub fn report_quest_progress(ctx: ReducerContext, quest_id: u32, progress_amount: u32) {
+    if Player::filter_by_identity(&ctx.sender).is_none() {
+        return;
+    }
+
+    let mut pq = match PlayerQuest::filter_by_player_identity(&ctx.sender)
+        .find(|pq| pq.quest_id == quest_id && pq.status == "active") {
+        Some(pq) => pq,
+        None => return,
+    };
+
+    let quest = match QuestDefinition::filter_by_id(&quest_id) {
+        Some(q) => q,
+        None => return,
+    };
+
+    pq.progress += progress_amount;
+
+    // Parse objectives to find current step target
+    let objectives: Vec<&str> = quest.objectives_json.split(';').collect();
+    if let Some(obj) = objectives.get(pq.current_step as usize) {
+        let parts: Vec<&str> = obj.split(':').collect();
+        let target_qty: u32 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(1);
+
+        if pq.progress >= target_qty {
+            pq.progress = 0;
+            pq.current_step += 1;
+
+            let total_steps = objectives.len() as u32;
+            if pq.current_step >= total_steps {
+                pq.status = "completed".to_string();
+                pq.completed_at = ctx.timestamp.into_micros_since_epoch();
+
+                // Grant rewards
+                if !quest.reward_xp_skill.is_empty() && quest.reward_xp_amount > 0 {
+                    grant_xp(&ctx.sender, &quest.reward_xp_skill, quest.reward_xp_amount);
+                }
+                if quest.reward_item_id > 0 {
+                    let _ = add_to_inventory(&ctx.sender, quest.reward_item_id, quest.reward_item_qty);
+                }
+                log::info!("Player completed quest: {}", quest.name);
+            }
+        }
+    }
+
+    let pid = pq.id;
+    PlayerQuest::update_by_id(&pid, pq);
+}
+
+/// Get the starting dialogue node for an NPC interaction.
+#[spacetimedb(reducer)]
+pub fn start_dialogue(_ctx: ReducerContext, _npc_subtype: String) {
+    // Dialogue is read-only from client subscription to DialogueNode table.
+    // This reducer exists as a placeholder for future dialogue state tracking.
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 3: INTERNALS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -835,6 +1062,89 @@ fn seed_crafting_recipes() {
     recipe!(4, "Leather Chest","Assemble a leather chest piece.",        11, 1, "30:4",      2, 30, "armorcrafting");
     recipe!(5, "Minor Health Potion", "Brew a healing potion.",          20, 3, "33:2;30:1", 1, 15, "alchemy");
     recipe!(6, "Minor Mana Potion",   "Brew a mana potion.",            21, 3, "33:2;31:1", 2, 18, "alchemy");
+}
+
+fn seed_loot_tables() {
+    macro_rules! loot {
+        ($id:expr, $subtype:expr, $entries:expr) => {
+            if LootTable::filter_by_id(&$id).is_none() {
+                LootTable::insert(LootTable {
+                    id: $id, entity_subtype: $subtype.into(), entries_json: $entries.into(),
+                }).expect("loot table insert failed");
+            }
+        };
+    }
+    // entries format: "item_id:quantity:weight" (weight out of 100)
+    loot!(1, "goblin",         "30:1:60;20:1:15;1:1:5");    // copper ore 60%, health pot 15%, worn sword 5%, nothing 20%
+    loot!(2, "goblin_shaman",  "31:1:50;21:1:20;4:1:8");    // iron ore, mana pot, staff
+    loot!(3, "skeleton",       "31:2:45;2:1:10;10:1:12");   // iron ore, iron sword, leather helm
+    loot!(4, "wolf",           "33:2:70;30:1:20");           // raw fish (meat), copper ore (bone)
+}
+
+fn seed_dialogues() {
+    macro_rules! dialogue {
+        ($id:expr, $npc:expr, $text:expr, $choices:expr, $targets:expr, $root:expr) => {
+            if DialogueNode::filter_by_id(&$id).is_none() {
+                DialogueNode::insert(DialogueNode {
+                    id: $id, npc_subtype: $npc.into(), text: $text.into(),
+                    choices: $choices.into(), choice_targets: $targets.into(), is_root: $root,
+                }).expect("dialogue insert failed");
+            }
+        };
+    }
+    // Merchant Alice dialogue tree
+    dialogue!(1, "merchant_alice", "Welcome, traveler! I'm Alice. How can I help you today?",
+              "Tell me about this area;Do you have any work for me?;Goodbye", "2;3;0", true);
+    dialogue!(2, "merchant_alice", "This is the Starter Meadows. Goblins lurk in the forests, and there are copper veins in the hills to the south. Careful out there!",
+              "Anything else?;Thanks, goodbye", "1;0", false);
+    dialogue!(3, "merchant_alice", "Actually, yes! The goblins have been stealing copper from my shipments. If you could clear out a few and bring me some ore, I'd reward you handsomely.",
+              "I'll help! (Accept quest);Maybe later", "4;0", false);
+    dialogue!(4, "merchant_alice", "Wonderful! Bring me 5 Copper Ore after defeating some goblins. Good luck out there, adventurer!",
+              "On my way!", "0", false);
+
+    // Resource node "dialogues" (simple interaction text)
+    dialogue!(10, "resource_oak_tree", "A sturdy oak tree. You could chop some logs here.",
+              "Chop wood;Leave", "0;0", true);
+    dialogue!(11, "resource_copper", "A vein of copper ore glints in the rock face.",
+              "Mine copper;Leave", "0;0", true);
+    dialogue!(12, "resource_fish_spot", "Fish swirl lazily beneath the water's surface.",
+              "Cast line;Leave", "0;0", true);
+}
+
+fn seed_quests() {
+    macro_rules! quest {
+        ($id:expr, $name:expr, $desc:expr, $giver:expr, $steps:expr, $obj:expr, $xp_skill:expr, $xp_amt:expr, $item:expr, $qty:expr, $level:expr) => {
+            if QuestDefinition::filter_by_id(&$id).is_none() {
+                QuestDefinition::insert(QuestDefinition {
+                    id: $id, name: $name.into(), description: $desc.into(),
+                    giver_npc: $giver.into(), steps_json: $steps.into(),
+                    objectives_json: $obj.into(),
+                    reward_xp_skill: $xp_skill.into(), reward_xp_amount: $xp_amt,
+                    reward_item_id: $item, reward_item_qty: $qty, required_level: $level,
+                }).expect("quest insert failed");
+            }
+        };
+    }
+    quest!(1, "Goblin Trouble",
+           "Clear out goblins near the village and collect copper ore for Merchant Alice.",
+           "merchant_alice",
+           "Defeat 3 goblins;Collect 5 Copper Ore;Return to Alice",
+           "kill:goblin:3;gather:30:5;talk:merchant_alice:1",
+           "melee", 100, 2, 1, 1);
+
+    quest!(2, "Lumberjack's Start",
+           "Gather oak logs to prove your woodcutting skills.",
+           "merchant_alice",
+           "Gather 10 Oak Logs;Return to Alice",
+           "gather:32:10;talk:merchant_alice:1",
+           "gathering", 75, 32, 5, 1);
+
+    quest!(3, "Brew Master Apprentice",
+           "Learn the basics of alchemy by crafting potions.",
+           "merchant_alice",
+           "Gather 4 Raw Fish;Craft 3 Health Potions;Return to Alice",
+           "gather:33:4;craft:5:1;talk:merchant_alice:1",
+           "crafting", 60, 20, 5, 1);
 }
 
 fn seed_world_entities() {

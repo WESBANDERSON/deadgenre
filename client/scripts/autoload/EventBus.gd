@@ -74,8 +74,22 @@ signal crafting_started(recipe_id: int)
 signal crafting_completed(recipe_id: int, item_name: String)
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Dialogue
+# ─────────────────────────────────────────────────────────────────────────────
+signal dialogue_started(npc_subtype: String)
+signal dialogue_ended
+signal quest_action_triggered(npc_subtype: String, action_id: int)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Quests
+# ─────────────────────────────────────────────────────────────────────────────
+signal quest_accepted(quest_id: int)
+signal quest_progress_updated(quest_id: int, new_progress: int)
+signal quest_completed(quest_id: int)
+
+# ─────────────────────────────────────────────────────────────────────────────
 # UI
 # ─────────────────────────────────────────────────────────────────────────────
 signal notification_shown(message: String, style: String)  # style: "info"|"warn"|"error"|"loot"
 signal chat_message_received(channel: String, sender: String, message: String)
-signal panel_toggle_requested(panel_name: String)          # "inventory"|"skills"|"map"|"menu"
+signal panel_toggle_requested(panel_name: String)          # "inventory"|"skills"|"map"|"menu"|"quests"
