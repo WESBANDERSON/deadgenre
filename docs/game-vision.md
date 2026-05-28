@@ -142,6 +142,14 @@ The visual target should be "clean stylized fantasy that tolerates low complexit
 - reusable environment kits
 - selective hero assets where human polish matters most
 
+### Perspective and Camera (planned)
+
+The game will move from 2D top-down to **2.5D with full camera rotation** around the player character. Seeing equipped armor on your character is a key reward signal. The orbit camera supports gear inspection and world exploration from any angle. See [ADR-001](adr/001-2.5d-camera-and-wasd-movement.md) for details.
+
+### Movement (planned)
+
+Primary movement will be **WASD directional** (relative to camera facing) rather than click-to-move. This gives a more responsive action-RPG feel aligned with the Albion Online inspiration.
+
 ## Business logic of the approach
 
 This design reduces risk in three ways:
