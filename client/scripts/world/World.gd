@@ -21,9 +21,9 @@ const LOAD_RADIUS      := 2   # chunks loaded around player in each direction
 # ─────────────────────────────────────────────────────────────────────────────
 # Node References
 # ─────────────────────────────────────────────────────────────────────────────
-@onready var tile_map:          TileMap  = $TileMap
-@onready var entity_container:  Node2D   = $EntityContainer
-@onready var camera:            Camera2D = $Camera
+@onready var terrain_layer:     TileMapLayer = $TerrainLayer
+@onready var entity_container:  Node2D       = $EntityContainer
+@onready var camera:            Camera2D     = $Camera
 
 # ─────────────────────────────────────────────────────────────────────────────
 # State
@@ -43,7 +43,7 @@ var entity_nodes: Dictionary = {}
 var _entity_scenes: Dictionary = {}
 
 func _ready() -> void:
-	tile_registry.build_tileset(tile_map)
+	tile_registry.build_tileset(terrain_layer)
 	GameManager.world = self
 	_preload_entity_scenes()
 	_connect_signals()
@@ -110,15 +110,13 @@ func _on_chunk_received(chunk_x: int, chunk_y: int, tile_data: PackedByteArray) 
 	var chunk_pos   := Vector2i(chunk_x, chunk_y)
 	var origin_tile := Vector2i(chunk_x * CHUNK_SIZE, chunk_y * CHUNK_SIZE)
 
-	# Write tiles into the TileMap (layer 0 = terrain)
 	for i in tile_data.size():
 		var tx  := i % CHUNK_SIZE
 		var ty  := i / CHUNK_SIZE
 		var map_pos := origin_tile + Vector2i(tx, ty)
 		var tile_id := tile_data[i]
-		tile_map.set_cell(0, map_pos, 0, Vector2i(tile_id, 0))
+		terrain_layer.set_cell(map_pos, 0, Vector2i(tile_id, 0))
 
-	# Update pathfinder for this chunk
 	pathfinder.update_chunk(origin_tile, tile_data, tile_registry)
 
 	chunk_states[_chunk_key(chunk_pos)] = "loaded"

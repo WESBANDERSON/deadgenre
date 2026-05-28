@@ -81,15 +81,14 @@ func _init() -> void:
 	for tile_def in TILE_TYPES:
 		_tile_by_id[tile_def.id] = tile_def
 
-## Build and assign a TileSet to the given TileMap.
+## Build and assign a TileSet to the given TileMapLayer.
 ## Called once by World._ready(). Safe to call again if the registry changes.
-func build_tileset(tile_map: TileMap) -> void:
+func build_tileset(layer: TileMapLayer) -> void:
 	var tileset := TileSet.new()
 	tileset.tile_size = Vector2i(TILE_SIZE, TILE_SIZE)
 
 	var source := TileSetAtlasSource.new()
 
-	# Create the atlas image: one row, one column per tile type
 	var atlas_width  := TILE_SIZE * TILE_TYPES.size()
 	var atlas_height := TILE_SIZE
 	var img := Image.create(atlas_width, atlas_height, false, Image.FORMAT_RGBA8)
@@ -98,19 +97,13 @@ func build_tileset(tile_map: TileMap) -> void:
 		var tile_def: Dictionary = TILE_TYPES[i]
 
 		if tile_def.sprite_path != "" and ResourceLoader.exists(tile_def.sprite_path):
-			# Load the real sprite and blit it into the atlas
 			var sprite_img: Image = load(tile_def.sprite_path).get_image()
 			if sprite_img.get_width() != TILE_SIZE or sprite_img.get_height() != TILE_SIZE:
 				sprite_img.resize(TILE_SIZE, TILE_SIZE, Image.INTERPOLATE_NEAREST)
 			img.blit_rect(sprite_img, Rect2i(0, 0, TILE_SIZE, TILE_SIZE),
 				Vector2i(i * TILE_SIZE, 0))
 		else:
-			# Draw a solid color block — good-looking placeholder
-			img.fill_rect(
-				Rect2i(i * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE),
-				tile_def.color)
-			# Add subtle 1px dark border for grid readability
-			_draw_tile_border(img, i * TILE_SIZE, 0, TILE_SIZE)
+			_draw_procedural_tile(img, i * TILE_SIZE, 0, TILE_SIZE, tile_def)
 
 	var texture := ImageTexture.create_from_image(img)
 	source.texture = texture
@@ -120,7 +113,7 @@ func build_tileset(tile_map: TileMap) -> void:
 		source.create_tile(Vector2i(i, 0))
 
 	tileset.add_source(source, 0)
-	tile_map.tile_set = tileset
+	layer.tile_set = tileset
 
 ## Returns true if the tile at the given ID can be walked on.
 func is_walkable(tile_id: int) -> bool:
@@ -133,8 +126,25 @@ func movement_cost(tile_id: int) -> float:
 func get_tile_name(tile_id: int) -> String:
 	return _tile_by_id.get(tile_id, {}).get("name", "unknown")
 
-func _draw_tile_border(img: Image, ox: int, oy: int, size: int) -> void:
-	var border := Color(0, 0, 0, 0.15)
+## Draw a textured tile with noise variation for visual interest.
+func _draw_procedural_tile(img: Image, ox: int, oy: int, size: int, tile_def: Dictionary) -> void:
+	var base_color: Color = tile_def.color
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(tile_def.name)
+
+	for y in size:
+		for x in size:
+			var noise_val := rng.randf_range(-0.06, 0.06)
+			var c := Color(
+				clampf(base_color.r + noise_val, 0.0, 1.0),
+				clampf(base_color.g + noise_val, 0.0, 1.0),
+				clampf(base_color.b + noise_val * 0.5, 0.0, 1.0),
+				1.0)
+			img.set_pixel(ox + x, oy + y, c)
+
+	# Subtle edge darkening for grid readability
+	var border := base_color.darkened(0.25)
+	border.a = 0.5
 	for px in size:
 		img.set_pixel(ox + px, oy, border)
 		img.set_pixel(ox + px, oy + size - 1, border)
