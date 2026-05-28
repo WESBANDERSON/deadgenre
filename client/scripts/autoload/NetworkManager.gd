@@ -151,6 +151,7 @@ func request_chunk(chunk_x: int, chunk_y: int) -> void:
 
 func use_skill(skill: String, target_id: int) -> void:
 	if OFFLINE_MODE:
+		_simulate_gather(skill, target_id)
 		return
 	# _db.call_reducer("use_skill", [skill, target_id])
 
@@ -158,6 +159,36 @@ func set_respawn_point(x: float, y: float) -> void:
 	if OFFLINE_MODE:
 		return
 	# _db.call_reducer("set_respawn_point", [x, y])
+
+func equip_item(slot_index: int) -> void:
+	if OFFLINE_MODE:
+		_simulate_equip(slot_index)
+		return
+	# _db.call_reducer("equip_item", [slot_index])
+
+func unequip_item(equip_slot: String) -> void:
+	if OFFLINE_MODE:
+		_simulate_unequip(equip_slot)
+		return
+	# _db.call_reducer("unequip_item", [equip_slot])
+
+func craft_item(recipe_id: int) -> void:
+	if OFFLINE_MODE:
+		_simulate_craft(recipe_id)
+		return
+	# _db.call_reducer("craft_item", [recipe_id])
+
+func drop_item(slot_index: int, quantity: int) -> void:
+	if OFFLINE_MODE:
+		_simulate_drop(slot_index, quantity)
+		return
+	# _db.call_reducer("drop_item", [slot_index, quantity])
+
+func player_died_reducer() -> void:
+	if OFFLINE_MODE:
+		_simulate_death()
+		return
+	# _db.call_reducer("player_died", [])
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Table Row Callbacks (server → client)
@@ -228,12 +259,44 @@ func _setup_offline_mode() -> void:
 
 	# Spawn starter mobs in offline mode
 	await get_tree().create_timer(0.5).timeout
-	var positions := [
+	var mob_positions := [
 		Vector2(160, 96), Vector2(256, 160), Vector2(-128, 192),
 		Vector2(320, -96), Vector2(-192, -160),
 	]
-	for i in positions.size():
-		EventBus.entity_spawned.emit(1000 + i, "mob", "goblin", positions[i])
+	for i in mob_positions.size():
+		EventBus.entity_spawned.emit(1000 + i, "mob", "goblin", mob_positions[i])
+
+	# Spawn resource nodes for gathering
+	var resources := [
+		[2000, "npc", "resource_oak_tree", Vector2(200, 50)],
+		[2001, "npc", "resource_oak_tree", Vector2(-150, 80)],
+		[2002, "npc", "resource_copper", Vector2(180, -120)],
+		[2003, "npc", "resource_copper", Vector2(-200, -80)],
+		[2004, "npc", "resource_fish_spot", Vector2(0, 250)],
+	]
+	for r in resources:
+		EventBus.entity_spawned.emit(r[0], r[1], r[2], r[3])
+
+	# Seed item definitions for offline inventory display
+	var items := [
+		{"id": 1, "name": "Worn Sword", "item_type": "weapon", "icon_path": ""},
+		{"id": 2, "name": "Iron Sword", "item_type": "weapon", "icon_path": ""},
+		{"id": 3, "name": "Oak Shortbow", "item_type": "weapon", "icon_path": ""},
+		{"id": 4, "name": "Apprentice Staff", "item_type": "weapon", "icon_path": ""},
+		{"id": 10, "name": "Leather Helm", "item_type": "armor", "icon_path": ""},
+		{"id": 11, "name": "Leather Chest", "item_type": "armor", "icon_path": ""},
+		{"id": 20, "name": "Minor Health Potion", "item_type": "consumable", "icon_path": ""},
+		{"id": 21, "name": "Minor Mana Potion", "item_type": "consumable", "icon_path": ""},
+		{"id": 30, "name": "Copper Ore", "item_type": "material", "icon_path": ""},
+		{"id": 31, "name": "Iron Ore", "item_type": "material", "icon_path": ""},
+		{"id": 32, "name": "Oak Log", "item_type": "material", "icon_path": ""},
+		{"id": 33, "name": "Raw Fish", "item_type": "material", "icon_path": ""},
+	]
+	for item in items:
+		InventorySystem.apply_item_definition(item)
+
+	# Give starter item
+	InventorySystem.apply_slot_update({"slot_index": 0, "item_id": 1, "quantity": 1})
 
 func _generate_chunk_offline(chunk_x: int, chunk_y: int) -> void:
 	# Mirror the server's generation logic in GDScript for offline dev
@@ -268,6 +331,66 @@ func _generate_chunk_offline(chunk_x: int, chunk_y: int) -> void:
 func _simulate_attack(entity_id: int) -> void:
 	EventBus.combat_hit.emit("local_player", str(entity_id), randi_range(3, 12), false)
 	EventBus.entity_health_changed.emit(entity_id, 20, 40)
+
+func _simulate_gather(skill: String, target_id: int) -> void:
+	if skill != "gathering":
+		return
+	var gathering_level: int = GameManager.player_skills.get("gathering", {}).get("level", 1)
+	var qty: int = 1 + gathering_level / 10
+	var item_names := {30: "Copper Ore", 31: "Iron Ore", 32: "Oak Log", 33: "Raw Fish"}
+	var item_id: int = 30
+	if target_id >= 1000:
+		item_id = [30, 31, 32, 33][target_id % 4]
+	var item_name: String = item_names.get(item_id, "Resource")
+	EventBus.item_picked_up.emit(item_name, qty)
+	EventBus.notification_shown.emit("Gathered %d × %s" % [qty, item_name], "loot")
+	EventBus.player_xp_gained.emit("gathering", 15, 0)
+	InventorySystem.apply_slot_update({"slot_index": _find_empty_slot(), "item_id": item_id, "quantity": qty})
+
+func _simulate_equip(slot_index: int) -> void:
+	var slot: Dictionary = InventorySystem.get_slot(slot_index)
+	if slot.item_id == 0:
+		return
+	var item_type: String = InventorySystem.get_item_type(slot.item_id)
+	if item_type not in ["weapon", "armor"]:
+		EventBus.notification_shown.emit("Cannot equip this item", "warn")
+		return
+	InventorySystem.clear_slot(slot_index)
+	EventBus.notification_shown.emit("Equipped %s" % slot.item_name, "info")
+	EventBus.equipment_changed.emit()
+
+func _simulate_unequip(equip_slot: String) -> void:
+	var empty := _find_empty_slot()
+	if empty < 0:
+		EventBus.notification_shown.emit("Inventory full!", "warn")
+		return
+	EventBus.notification_shown.emit("Unequipped from %s" % equip_slot, "info")
+	EventBus.equipment_changed.emit()
+
+func _simulate_craft(recipe_id: int) -> void:
+	EventBus.notification_shown.emit("Crafted item!", "loot")
+	EventBus.player_xp_gained.emit("crafting", 20, 0)
+
+func _simulate_drop(slot_index: int, _quantity: int) -> void:
+	var slot: Dictionary = InventorySystem.get_slot(slot_index)
+	if slot.item_id == 0:
+		return
+	InventorySystem.clear_slot(slot_index)
+	EventBus.notification_shown.emit("Dropped %s" % slot.item_name, "info")
+
+func _simulate_death() -> void:
+	GameManager.player_health = GameManager.player_max_health
+	GameManager.player_mana = GameManager.player_max_mana
+	EventBus.player_health_changed.emit(GameManager.local_player, GameManager.player_max_health, GameManager.player_max_health)
+	EventBus.player_mana_changed.emit(GameManager.local_player, GameManager.player_max_mana, GameManager.player_max_mana)
+	EventBus.local_player_respawned.emit(Vector2.ZERO)
+	EventBus.notification_shown.emit("You have died. Respawning...", "error")
+
+func _find_empty_slot() -> int:
+	for i in InventorySystem.MAX_SLOTS:
+		if InventorySystem.is_slot_empty(i):
+			return i
+	return -1
 
 func _pcg_hash(input: int) -> int:
 	var state: int = input * 6364136223846793005 + 1442695040888963407

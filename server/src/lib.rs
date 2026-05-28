@@ -148,6 +148,23 @@ pub struct CombatEvent {
     pub timestamp: u64,
 }
 
+/// Crafting recipes. Seeded at init, defines what can be crafted.
+/// ingredients_json format: "item_id:quantity;item_id:quantity" (simple semicolon-delimited pairs)
+#[spacetimedb(table)]
+#[derive(Clone, Debug)]
+pub struct CraftingRecipe {
+    #[primarykey]
+    pub id: u32,
+    pub name: String,
+    pub description: String,
+    pub result_item_id: u32,
+    pub result_quantity: u32,
+    pub ingredients_json: String,
+    pub required_level: i32,
+    pub xp_reward: u64,
+    pub category: String,
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // SECTION 2: REDUCERS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -157,6 +174,7 @@ pub struct CombatEvent {
 pub fn init() {
     log::info!("deadgenre server initializing...");
     seed_item_catalog();
+    seed_crafting_recipes();
     seed_world_entities();
     log::info!("deadgenre server ready.");
 }
@@ -346,11 +364,21 @@ pub fn request_chunk(_ctx: ReducerContext, chunk_x: i32, chunk_y: i32) {
 /// Trigger a skill action (gathering from resource nodes).
 #[spacetimedb(reducer)]
 pub fn use_skill(ctx: ReducerContext, skill: String, target_id: u64) {
-    if Player::filter_by_identity(&ctx.sender).is_none() { return; }
+    let player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => return,
+    };
     let entity = match Entity::filter_by_id(&target_id) {
         Some(e) => e,
         None => return,
     };
+
+    let dist = euclidean_dist(player.pos_x, player.pos_y, entity.pos_x, entity.pos_y);
+    if dist > 80.0 {
+        log::warn!("use_skill: target out of range ({:.1})", dist);
+        return;
+    }
+
     match skill.as_str() {
         "gathering" => {
             if entity.entity_type != "npc" || !entity.subtype.starts_with("resource_") {
@@ -361,6 +389,274 @@ pub fn use_skill(ctx: ReducerContext, skill: String, target_id: u64) {
             grant_xp(&ctx.sender, "gathering", 15);
         }
         _ => {}
+    }
+}
+
+/// Equip an item from the player's inventory into the appropriate slot.
+#[spacetimedb(reducer)]
+pub fn equip_item(ctx: ReducerContext, slot_index: u32) {
+    let mut player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => { log::warn!("equip_item: player not found"); return; }
+    };
+
+    let inv_slot = match InventorySlot::filter_by_player_identity(&ctx.sender)
+        .find(|s| s.slot_index == slot_index) {
+        Some(s) => s,
+        None => { log::warn!("equip_item: slot {} empty", slot_index); return; }
+    };
+
+    let item = match ItemDefinition::filter_by_id(&inv_slot.item_id) {
+        Some(i) => i,
+        None => return,
+    };
+
+    let equip_slot = match item.item_type.as_str() {
+        "weapon" => "weapon",
+        "armor" => item.subtype.as_str(),
+        _ => { log::warn!("equip_item: item {} is not equippable", item.name); return; }
+    };
+
+    let previously_equipped = match equip_slot {
+        "weapon" | "melee_1h" | "ranged_bow" | "magic_staff" => player.equip_weapon,
+        "helm" => player.equip_helm,
+        "chest" => player.equip_chest,
+        "legs" => player.equip_legs,
+        "boots" => player.equip_boots,
+        "ring" => player.equip_ring,
+        _ => { log::warn!("equip_item: unknown slot {}", equip_slot); return; }
+    };
+
+    match equip_slot {
+        "weapon" | "melee_1h" | "ranged_bow" | "magic_staff" => player.equip_weapon = inv_slot.item_id,
+        "helm" => player.equip_helm = inv_slot.item_id,
+        "chest" => player.equip_chest = inv_slot.item_id,
+        "legs" => player.equip_legs = inv_slot.item_id,
+        "boots" => player.equip_boots = inv_slot.item_id,
+        "ring" => player.equip_ring = inv_slot.item_id,
+        _ => return,
+    }
+
+    let sid = inv_slot.id;
+    InventorySlot::delete_by_id(&sid);
+
+    if previously_equipped > 0 {
+        let _ = add_to_inventory(&ctx.sender, previously_equipped, 1);
+    }
+
+    Player::update_by_identity(&ctx.sender, player);
+    log::info!("Player equipped {} in slot {}", item.name, equip_slot);
+}
+
+/// Unequip an item from an equipment slot back into the inventory.
+#[spacetimedb(reducer)]
+pub fn unequip_item(ctx: ReducerContext, equip_slot: String) {
+    let mut player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => { log::warn!("unequip_item: player not found"); return; }
+    };
+
+    let item_id = match equip_slot.as_str() {
+        "weapon" => player.equip_weapon,
+        "helm" => player.equip_helm,
+        "chest" => player.equip_chest,
+        "legs" => player.equip_legs,
+        "boots" => player.equip_boots,
+        "ring" => player.equip_ring,
+        _ => { log::warn!("unequip_item: unknown slot {}", equip_slot); return; }
+    };
+
+    if item_id == 0 {
+        log::warn!("unequip_item: slot {} is empty", equip_slot);
+        return;
+    }
+
+    if add_to_inventory(&ctx.sender, item_id, 1).is_err() {
+        log::warn!("unequip_item: inventory full");
+        return;
+    }
+
+    match equip_slot.as_str() {
+        "weapon" => player.equip_weapon = 0,
+        "helm" => player.equip_helm = 0,
+        "chest" => player.equip_chest = 0,
+        "legs" => player.equip_legs = 0,
+        "boots" => player.equip_boots = 0,
+        "ring" => player.equip_ring = 0,
+        _ => return,
+    }
+
+    Player::update_by_identity(&ctx.sender, player);
+    log::info!("Player unequipped from slot {}", equip_slot);
+}
+
+/// Handle player death: drop percentage of resources, respawn at bound point.
+#[spacetimedb(reducer)]
+pub fn player_died(ctx: ReducerContext) {
+    let mut player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => return,
+    };
+
+    if player.health > 0 {
+        return;
+    }
+
+    let death_pos_x = player.pos_x;
+    let death_pos_y = player.pos_y;
+
+    let inventory_slots: Vec<InventorySlot> = InventorySlot::filter_by_player_identity(&ctx.sender).collect();
+    for slot in inventory_slots {
+        let item = match ItemDefinition::filter_by_id(&slot.item_id) {
+            Some(i) => i,
+            None => continue,
+        };
+        if item.item_type == "material" && slot.quantity > 0 {
+            let drop_qty = (slot.quantity as f32 * 0.10).ceil() as u32;
+            if drop_qty > 0 {
+                Entity::insert(Entity {
+                    id: 0,
+                    entity_type: "item_drop".to_string(),
+                    subtype: format!("drop_{}", slot.item_id),
+                    pos_x: death_pos_x + (slot.slot_index as f32 * 4.0 - 56.0),
+                    pos_y: death_pos_y,
+                    health: 1,
+                    max_health: 1,
+                    is_active: true,
+                    drop_item_id: slot.item_id,
+                    drop_quantity: drop_qty,
+                }).expect("Failed to drop item on death");
+
+                let remaining = slot.quantity - drop_qty;
+                if remaining > 0 {
+                    let mut updated_slot = slot.clone();
+                    updated_slot.quantity = remaining;
+                    let sid = updated_slot.id;
+                    InventorySlot::update_by_id(&sid, updated_slot);
+                } else {
+                    let sid = slot.id;
+                    InventorySlot::delete_by_id(&sid);
+                }
+            }
+        }
+    }
+
+    player.health = player.max_health;
+    player.mana = player.max_mana;
+    player.pos_x = player.respawn_x;
+    player.pos_y = player.respawn_y;
+    player.chunk_x = (player.respawn_x / 1024.0).floor() as i32;
+    player.chunk_y = (player.respawn_y / 1024.0).floor() as i32;
+    Player::update_by_identity(&ctx.sender, player);
+    log::info!("Player died and respawned");
+}
+
+/// Start crafting an item using a recipe. Consumes materials immediately.
+#[spacetimedb(reducer)]
+pub fn craft_item(ctx: ReducerContext, recipe_id: u32) {
+    if Player::filter_by_identity(&ctx.sender).is_none() {
+        return;
+    }
+
+    let recipe = match CraftingRecipe::filter_by_id(&recipe_id) {
+        Some(r) => r,
+        None => { log::warn!("craft_item: unknown recipe {}", recipe_id); return; }
+    };
+
+    let crafting_level = get_skill_level(&ctx.sender, "crafting");
+    if crafting_level < recipe.required_level {
+        log::warn!("craft_item: level {} < required {}", crafting_level, recipe.required_level);
+        return;
+    }
+
+    let ingredients: Vec<(u32, u32)> = recipe.ingredients_json
+        .split(';')
+        .filter_map(|pair| {
+            let parts: Vec<&str> = pair.split(':').collect();
+            if parts.len() == 2 {
+                Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let inventory: Vec<InventorySlot> = InventorySlot::filter_by_player_identity(&ctx.sender).collect();
+    for (item_id, qty_needed) in &ingredients {
+        let have: u32 = inventory.iter()
+            .filter(|s| s.item_id == *item_id)
+            .map(|s| s.quantity)
+            .sum();
+        if have < *qty_needed {
+            log::warn!("craft_item: insufficient material {} (have {}, need {})", item_id, have, qty_needed);
+            return;
+        }
+    }
+
+    for (item_id, mut qty_needed) in ingredients {
+        let slots: Vec<InventorySlot> = InventorySlot::filter_by_player_identity(&ctx.sender)
+            .filter(|s| s.item_id == item_id)
+            .collect();
+        for slot in slots {
+            if qty_needed == 0 { break; }
+            if slot.quantity <= qty_needed {
+                qty_needed -= slot.quantity;
+                let sid = slot.id;
+                InventorySlot::delete_by_id(&sid);
+            } else {
+                let mut updated = slot.clone();
+                updated.quantity -= qty_needed;
+                qty_needed = 0;
+                let sid = updated.id;
+                InventorySlot::update_by_id(&sid, updated);
+            }
+        }
+    }
+
+    let _ = add_to_inventory(&ctx.sender, recipe.result_item_id, recipe.result_quantity);
+    grant_xp(&ctx.sender, "crafting", recipe.xp_reward);
+    log::info!("Player crafted recipe {}", recipe_id);
+}
+
+/// Drop an item from the player's inventory onto the ground.
+#[spacetimedb(reducer)]
+pub fn drop_item(ctx: ReducerContext, slot_index: u32, quantity: u32) {
+    let player = match Player::filter_by_identity(&ctx.sender) {
+        Some(p) => p,
+        None => return,
+    };
+
+    let slot = match InventorySlot::filter_by_player_identity(&ctx.sender)
+        .find(|s| s.slot_index == slot_index) {
+        Some(s) => s,
+        None => return,
+    };
+
+    if quantity == 0 || quantity > slot.quantity {
+        return;
+    }
+
+    Entity::insert(Entity {
+        id: 0,
+        entity_type: "item_drop".to_string(),
+        subtype: format!("drop_{}", slot.item_id),
+        pos_x: player.pos_x,
+        pos_y: player.pos_y + 20.0,
+        health: 1,
+        max_health: 1,
+        is_active: true,
+        drop_item_id: slot.item_id,
+        drop_quantity: quantity,
+    }).expect("Failed to drop item");
+
+    if slot.quantity <= quantity {
+        let sid = slot.id;
+        InventorySlot::delete_by_id(&sid);
+    } else {
+        let mut updated = slot.clone();
+        updated.quantity -= quantity;
+        let sid = updated.id;
+        InventorySlot::update_by_id(&sid, updated);
     }
 }
 
@@ -518,6 +814,27 @@ fn seed_item_catalog() {
     item!(31, "Iron Ore",            "Dense iron ore.",             "material",   "ore",         r#"{"tier":2}"#,     true,  1000);
     item!(32, "Oak Log",             "Sturdy oak log.",             "material",   "wood",        r#"{"tier":1}"#,     true,  1000);
     item!(33, "Raw Fish",            "Needs cooking.",              "material",   "fish",        r#"{"tier":1}"#,     true,  500);
+}
+
+fn seed_crafting_recipes() {
+    macro_rules! recipe {
+        ($id:expr, $name:expr, $desc:expr, $result_id:expr, $result_qty:expr, $ingredients:expr, $level:expr, $xp:expr, $cat:expr) => {
+            if CraftingRecipe::filter_by_id(&$id).is_none() {
+                CraftingRecipe::insert(CraftingRecipe {
+                    id: $id, name: $name.into(), description: $desc.into(),
+                    result_item_id: $result_id, result_quantity: $result_qty,
+                    ingredients_json: $ingredients.into(),
+                    required_level: $level, xp_reward: $xp, category: $cat.into(),
+                }).expect("recipe insert failed");
+            }
+        };
+    }
+    recipe!(1, "Iron Sword",   "Forge an iron sword from ore and wood.",  2, 1, "31:3;32:1", 5, 50, "weaponsmithing");
+    recipe!(2, "Oak Shortbow", "Craft a bow from oak logs.",              3, 1, "32:4",      3, 35, "woodworking");
+    recipe!(3, "Leather Helm", "Stitch a basic leather helm.",           10, 1, "30:2",      1, 20, "armorcrafting");
+    recipe!(4, "Leather Chest","Assemble a leather chest piece.",        11, 1, "30:4",      2, 30, "armorcrafting");
+    recipe!(5, "Minor Health Potion", "Brew a healing potion.",          20, 3, "33:2;30:1", 1, 15, "alchemy");
+    recipe!(6, "Minor Mana Potion",   "Brew a mana potion.",            21, 3, "33:2;31:1", 2, 18, "alchemy");
 }
 
 fn seed_world_entities() {

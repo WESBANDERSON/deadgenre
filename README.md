@@ -114,10 +114,13 @@ The game is designed to grow in tiers. Current foundation:
 | Network sync | ✅ | SpacetimeDB player state sync |
 | Combat | ✅ | Basic melee combat with cooldowns |
 | Skills | ✅ | XP framework (8 skills) |
-| Inventory | ✅ | 28-slot server-mirrored inventory |
+| Inventory | ✅ | 28-slot server-mirrored inventory with panel UI |
+| Equipment | ✅ | Equip/unequip reducers, slot-based gear system |
+| Crafting | ✅ | Recipe-based crafting with 6 starter recipes |
+| Gathering | ✅ | Resource node interaction, XP, item drops |
+| Death/Respawn | ✅ | Death screen, 10% resource drop, respawn flow |
 | AI assets | ✅ | Generation pipeline for any category |
 | NPC dialogue | 🔜 | Dialogue trees, AI-generated lines |
-| Crafting | 🔜 | Recipe-based crafting system |
 | Guilds | 🔜 | Territory control, guild banks |
 | Economy | 🔜 | Player-driven market |
 
@@ -186,12 +189,13 @@ Gameplay logic and content IDs remain stable while presentation quality evolves.
 - Server module compiles and publishes
 - AI asset generation pipeline
 
-### Milestone 1 — Playable Loop
+### Milestone 1 — Playable Loop 🔄
 - Login / spawn
 - Movement replication
 - Baseline combat loop
-- Inventory / equipment loop
-- Gather → craft → equip chain
+- Inventory / equipment loop ✅ (equip_item, unequip_item, inventory panel)
+- Gather → craft → equip chain ✅ (gathering interaction, crafting recipes + UI, equip flow)
+- Death / respawn loop ✅ (player_died reducer, DeathScreen, resource drops)
 
 ### Milestone 2 — Living World
 - NPC services and dialogue
