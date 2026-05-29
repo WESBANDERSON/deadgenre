@@ -1,0 +1,19 @@
+{
+    "_comment": "Dreadmyst 2.5D environment props — billboards placed by World3D when chunks load.",
+    "category": "props",
+    "style": "dreadmyst_prop",
+    "context": "haunted moorland and ruined hollow, knee-high fog, dusk lighting",
+    "biome": "haunted moorland",
+    "items": [
+        "oak_tree",
+        "dead_pine",
+        "stone_pillar",
+        "copper_vein",
+        "iron_vein",
+        "fish_spot",
+        "ruined_arch",
+        "lantern_post",
+        "tombstone",
+        "mushroom_cluster"
+    ]
+}
