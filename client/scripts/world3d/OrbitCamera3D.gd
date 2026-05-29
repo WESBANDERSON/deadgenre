@@ -42,6 +42,11 @@ func _build_camera() -> void:
 	_camera.near = 0.1
 	_camera.far = 240.0
 	add_child(_camera)
+	# Programmatically-created Camera3Ds do NOT auto-activate in Godot 4.
+	# Without this, the viewport has no active camera and the 3D world
+	# never renders (HUD still appears because CanvasLayer is independent).
+	_camera.current = true
+	_camera.make_current()
 	_apply_camera_transform()
 
 func _process(delta: float) -> void:
