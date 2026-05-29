@@ -2,10 +2,10 @@
 
 An AI-first MMO. Simple foundations, infinite potential.
 
-**Inspiration**: Old School RuneScape · Albion Online · Farever  
-**Engine**: Godot 4.3  
-**Backend**: SpacetimeDB (Rust)  
-**Visual style**: Programmatic 2D top-down, AI-generated sprite upgrades over time
+**Inspiration**: Old School RuneScape · Albion Online · Dreadmyst · Megabonk
+**Engine**: Godot 4.3 (Forward+ 3D renderer, 2.5D billboards)
+**Backend**: SpacetimeDB (Rust)
+**Visual style**: 2.5D billboard sprites in a moody Dreadmyst-flavored 3D world. Procedural fallback art ships with the engine; AI-generated billboards drop in seamlessly via `tools/asset_generator`.
 
 ---
 
@@ -27,19 +27,24 @@ See [`docs/game-vision.md`](docs/game-vision.md) for the full design vision and 
 
 ```
 deadgenre/
-├── client/                 # Godot 4.3 game client
+├── client/                 # Godot 4.3 game client (Forward+ 2.5D)
 │   ├── project.godot
 │   ├── scenes/             # Scene files (.tscn)
+│   │   ├── Main3D.tscn     #   ← main scene (2.5D world + HUD + screens)
+│   │   ├── world3d/        #   World3D scene + environment
+│   │   └── entities3d/     #   Player3D / Mob3D / NPC3D / Prop3D
 │   ├── scripts/
 │   │   ├── autoload/       # Global singletons (GameManager, EventBus, NetworkManager)
-│   │   ├── world/          # World, chunks, tilemap, pathfinding
-│   │   ├── entities/       # Player, NPC, Mob base classes
-│   │   ├── systems/        # Combat, Skills, Inventory, Crafting
-│   │   ├── ui/             # HUD, panels, menus
+│   │   ├── world3d/        # World3D, TerrainBuilder, OrbitCamera3D, SpriteFactory
+│   │   ├── entities3d/     # Player3D, Entity3D, Mob3D, NPC3D, Prop3D
+│   │   ├── world/          # Legacy 2D world (kept for fallback / reference)
+│   │   ├── entities/       # Legacy 2D entities (kept for fallback / reference)
+│   │   ├── systems/        # Combat, Skills, Inventory, TabTargeting
+│   │   ├── ui/             # HUD, panels, menus (CanvasLayer; world-agnostic)
 │   │   └── network/        # SpacetimeDB adapter and message handlers
 │   └── assets/
 │       ├── sprites/        # Organized by category; hand-crafted assets
-│       └── generated/      # AI-generated assets land here
+│       └── generated/      # AI-generated assets land here (characters/, props/, tiles/, items/)
 │
 ├── server/                 # SpacetimeDB module (Rust)
 │   ├── Cargo.toml
@@ -64,6 +69,27 @@ deadgenre/
 
 ---
 
+## Visual Style & Controls
+
+The 2.5D client targets a **Dreadmyst-meets-Megabonk** look: moody dark
+fantasy fog, ember-rim character silhouettes, snappy top-down readable
+movement. See [ADR-002](docs/adr/002-dreadmyst-2-5d-billboards.md) for the
+full design + tier ladder.
+
+| Input             | Action                                       |
+|-------------------|----------------------------------------------|
+| `WASD`            | Move (camera-relative)                       |
+| `Left click`      | Move / target / talk (context)               |
+| `Right click`     | Interact (gather, attack, talk)              |
+| `Tab`             | Cycle nearest hostile target                 |
+| `Esc`             | Clear target                                 |
+| `Space` / `Enter` | Attack current target                        |
+| `F`               | Interact with closest entity                 |
+| `Q` / `E`         | Rotate orbit camera                          |
+| Mouse wheel       | Zoom                                         |
+| `1`..`8`          | Hotbar slots                                 |
+| `I` / `K` / `M`   | Inventory / Skills / Map panels              |
+
 ## Getting Started
 
 ### Prerequisites
@@ -77,7 +103,8 @@ deadgenre/
 
 ```bash
 # Open Godot and import client/project.godot
-# The game runs in offline mode without a SpacetimeDB connection
+# The main scene is scenes/Main3D.tscn (2.5D Dreadmyst world).
+# The game runs offline by default; flip NetworkManager.OFFLINE_MODE = false to connect.
 ```
 
 ### Run the server
@@ -97,9 +124,32 @@ In `client/scripts/autoload/NetworkManager.gd`, set `SPACETIME_HOST` to your ser
 ```bash
 cd tools/asset_generator
 pip install -r requirements.txt
-# Set OPENAI_API_KEY in your environment (or use Replicate for Stable Diffusion)
-python generate.py --category items --batch "iron_sword,fire_staff,oak_bow" --style pixel_art_32
+
+# OpenAI DALL-E 3:
+export OPENAI_API_KEY="sk-..."
+
+# OR Stable Diffusion via Replicate:
+export REPLICATE_API_TOKEN="r8_..."
+
+# OR Midjourney / external tool: --provider manual writes prompts.txt and
+# placeholder PNGs at the canonical paths; render in Midjourney and overwrite.
 ```
+
+Starter batches that populate the 2.5D Dreadmyst world:
+
+```bash
+python generate.py --batch-file batches/dreadmyst_starter_characters.json
+python generate.py --batch-file batches/dreadmyst_starter_props.json
+python generate.py --batch-file batches/dreadmyst_starter_tiles.json
+
+# Same flow, but log prompts for Midjourney instead of calling an API:
+python generate.py --batch-file batches/dreadmyst_starter_characters.json --provider manual
+```
+
+Generated PNGs land at `client/assets/generated/<category>/<name>.png` and
+are picked up automatically by `SpriteFactory.try_load_generated`. Until a
+real image is dropped in, the client uses the in-engine procedural
+Dreadmyst fallback so the game looks coherent on first run.
 
 ---
 
@@ -109,8 +159,12 @@ The game is designed to grow in tiers. Current foundation:
 
 | System | Status | Description |
 |--------|--------|-------------|
-| World rendering | ✅ | Procedural tile world, chunk streaming |
-| Player movement | ✅ | Click-to-move with A* pathfinding |
+| 2.5D world rendering | ✅ | Forward+ 3D scene, vertex-color terrain chunks, fog, moonlight (Dreadmyst style) |
+| Billboard characters | ✅ | Sprite3D billboards with procedural Dreadmyst fallback art (replaceable via AI pipeline) |
+| Orbit camera | ✅ | Top-down follow camera, Q/E yaw, mouse-wheel zoom |
+| WASD movement | ✅ | Camera-relative, snappy accel/decel; click-to-move preserved as fallback |
+| Tab targeting | ✅ | Cycle nearest hostile, ground-ring highlight, Esc clears |
+| Player movement | ✅ | Click-to-move with A* pathfinding (bridged to 3D world) |
 | Network sync | ✅ | SpacetimeDB player state sync |
 | Combat | ✅ | Basic melee combat with cooldowns |
 | Skills | ✅ | XP framework (8 skills) |
