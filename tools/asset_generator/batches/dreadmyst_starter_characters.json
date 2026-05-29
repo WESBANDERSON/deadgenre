@@ -1,0 +1,18 @@
+{
+    "_comment": "Dreadmyst 2.5D billboard characters — the minimum set needed to populate the starter world.",
+    "category": "characters",
+    "style": "dreadmyst_billboard",
+    "context": "starter misted hollow region, dusk lighting, fog up to knee height",
+    "biome": "haunted moorland",
+    "items": [
+        "player_warrior",
+        "player_ranger",
+        "player_mage",
+        "goblin",
+        "goblin_shaman",
+        "skeleton",
+        "wolf",
+        "dread_wraith",
+        "merchant_alice"
+    ]
+}

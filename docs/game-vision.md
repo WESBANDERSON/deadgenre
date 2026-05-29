@@ -142,13 +142,32 @@ The visual target should be "clean stylized fantasy that tolerates low complexit
 - reusable environment kits
 - selective hero assets where human polish matters most
 
-### Perspective and Camera (planned)
+### Perspective and Camera
 
-The game will move from 2D top-down to **2.5D with full camera rotation** around the player character. Seeing equipped armor on your character is a key reward signal. The orbit camera supports gear inspection and world exploration from any angle. See [ADR-001](adr/001-2.5d-camera-and-wasd-movement.md) for details.
+The client renders the world in **2.5D**: a true 3D scene with billboard
+sprites for characters and props, an orbit follow camera tilted ~55° down,
+and a Dreadmyst-flavored fog/lighting WorldEnvironment. See
+[ADR-002](adr/002-dreadmyst-2-5d-billboards.md) for the implementation and
+the tier path that scales these billboards to low-poly 3D models without
+breaking the server schema. [ADR-001](adr/001-2.5d-camera-and-wasd-movement.md)
+captured the original intent.
 
-### Movement (planned)
+### Movement
 
-Primary movement will be **WASD directional** (relative to camera facing) rather than click-to-move. This gives a more responsive action-RPG feel aligned with the Albion Online inspiration.
+Primary movement is **WASD directional** (camera-relative) with `click-to-move`
+preserved as a pointer-friendly fallback. Movement uses linear accel/decel
+so it stays snappy without feeling robotic. **Tab** cycles to the nearest
+hostile target; **Space / Enter** swings at it. Right-click is reserved for
+context interactions (talk, gather, attack).
+
+### Look and feel
+
+Inspirations: **Dreadmyst** for atmosphere (moody dark-fantasy, cold palette
+pierced by ember and witchfire accents) and **Megabonk** for momentum
+(top-down readable, snappy controls, lots of enemies on screen). The
+intentional limit at Tier 0 is single-frame billboards rendered in a Godot
+Forward+ 3D scene — strong silhouettes, fog, and lighting do the heavy
+lifting until production art lands.
 
 ## Business logic of the approach
 

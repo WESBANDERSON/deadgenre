@@ -1,0 +1,17 @@
+{
+    "_comment": "Optional tileable ground textures for the 2.5D world. The terrain mesh uses vertex colors by default; these textures can be wired in later via a custom shader.",
+    "category": "tiles",
+    "style": "dreadmyst_tile",
+    "context": "Dreadmyst haunted moorland palette",
+    "biome": "haunted moorland",
+    "items": [
+        "grass",
+        "forest",
+        "stone",
+        "water",
+        "sand",
+        "dirt",
+        "snow",
+        "swamp"
+    ]
+}

@@ -43,6 +43,7 @@ from styles.base import build_prompt, build_negative_prompt
 from categories import items as items_cat
 from categories import characters as chars_cat
 from categories import tiles as tiles_cat
+from categories import props as props_cat
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ def build_asset_prompt(category: str, name: str, style_name: str,
         user_prompt, context = chars_cat.from_name(name)
     elif category in ("tiles",):
         user_prompt, context = tiles_cat.from_name(name, biome)
+    elif category in ("props",):
+        user_prompt, context = props_cat.from_name(name, biome)
     else:
         user_prompt = f"{name.replace('_', ' ')}, game asset"
         context = ""
@@ -153,12 +156,53 @@ def generate_replicate(positive: str, negative: str, style: config.StyleProfile)
     return requests.get(url).content
 
 
+def generate_manual(positive: str, negative: str, style: config.StyleProfile,
+                    category: str, name: str) -> bytes:
+    """Manual provider — write the prompt + target path; user fills the PNG.
+
+    Use case: external image services like Midjourney or NovelAI where there
+    is no programmatic API the user wants to wire up. This provider writes
+    a placeholder transparent PNG to the canonical path AND appends a row
+    to `prompts.txt` so the user can paste the prompt elsewhere and overwrite
+    the placeholder file with the rendered image.
+    """
+    subdir = config.CATEGORY_DIRS.get(category, category)
+    output_dir = config.GENERATED_OUTPUT / subdir
+    output_dir.mkdir(parents=True, exist_ok=True)
+    prompts_log = output_dir / "prompts.txt"
+    with open(prompts_log, "a") as fp:
+        fp.write(f"--- {name} [{style.name}] ---\n")
+        fp.write(f"POSITIVE: {positive}\n")
+        if negative:
+            fp.write(f"NEGATIVE: {negative}\n")
+        fp.write(f"TARGET  : {(output_dir / (name + '.png')).relative_to(config.REPO_ROOT)}\n")
+        fp.write(f"SIZE    : {style.output_width}x{style.output_height}\n\n")
+    # Tiny transparent PNG placeholder so the manifest path exists. The user
+    # is expected to overwrite this file with a real render.
+    transparent_png = bytes([
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
+        0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82,
+    ])
+    print(f"        MANUAL: prompt logged to {prompts_log.relative_to(config.REPO_ROOT)}")
+    print(f"        Drop the rendered PNG at: {(output_dir / (name + '.png')).relative_to(config.REPO_ROOT)}")
+    return transparent_png
+
+
 def generate_image(positive: str, negative: str, style: config.StyleProfile,
-                   provider: str) -> bytes:
+                   provider: str, category: str = "", name: str = "") -> bytes:
     if provider == "openai":
         return generate_openai(positive, style)
     elif provider == "replicate":
         return generate_replicate(positive, negative, style)
+    elif provider == "manual":
+        return generate_manual(positive, negative, style, category, name)
     else:
         print(f"  ERROR: Unknown provider '{provider}'")
         sys.exit(1)
@@ -239,8 +283,9 @@ def generate_asset(
         return {"dry_run": True, "prompt": positive}
 
     try:
-        raw = generate_image(positive, negative, style, provider)
-        processed = postprocess(raw, style)
+        raw = generate_image(positive, negative, style, provider, category, name)
+        # Manual provider already returns a tiny placeholder; do not resize it.
+        processed = raw if provider == "manual" else postprocess(raw, style)
         path = write_asset(processed, category, name)
         prompt_hash = hashlib.md5(positive.encode()).hexdigest()[:8]
 
@@ -316,8 +361,8 @@ def main() -> None:
         help="Visual style profile (default: pixel_art_32)")
     parser.add_argument("--provider", "-p",
         default=config.DEFAULT_PROVIDER,
-        choices=["openai", "replicate"],
-        help="AI provider to use")
+        choices=["openai", "replicate", "manual"],
+        help="AI provider to use (manual logs prompts for external tools like Midjourney)")
     parser.add_argument("--biome",
         default="",
         help="Optional biome context (e.g. 'volcanic', 'arctic')")

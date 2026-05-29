@@ -29,7 +29,12 @@ MANIFEST_PATH    = GENERATED_OUTPUT / "manifest.json"
 # ─────────────────────────────────────────────────────────────────────────────
 # API Configuration
 # ─────────────────────────────────────────────────────────────────────────────
-# Supported providers: "openai" | "replicate" | "local"
+# Supported providers: "openai" | "replicate" | "manual"
+# - "openai":    DALL-E 3 (requires OPENAI_API_KEY)
+# - "replicate": SDXL / Stable Diffusion (requires REPLICATE_API_TOKEN)
+# - "manual":    Print prompts + destination paths and write a prompts.json.
+#                Use this when generating in Midjourney, Krea, NovelAI, etc.
+#                and then dropping the resulting PNGs into the printed paths.
 DEFAULT_PROVIDER = os.environ.get("ASSET_PROVIDER", "openai")
 
 OPENAI_API_KEY    = os.environ.get("OPENAI_API_KEY", "")
@@ -59,6 +64,74 @@ class StyleProfile:
     steps: int = 20
 
 STYLE_PROFILES: dict[str, StyleProfile] = {
+    # ─────────────────────────────────────────────────────────────────────
+    # Dreadmyst-flavoured 2.5D billboard sprites
+    # These are the active style for the new 2.5D client. Sprites are tall
+    # full-body characters/props with transparent backgrounds, designed to
+    # billboard onto Sprite3D nodes in the 3D world. Color and mood match
+    # the in-engine procedural fallback in SpriteFactory.gd so AI-generated
+    # assets slot in seamlessly.
+    # ─────────────────────────────────────────────────────────────────────
+    "dreadmyst_billboard": StyleProfile(
+        name="dreadmyst_billboard",
+        prompt_prefix=(
+            "full-body character billboard for a 2.5D dark fantasy RPG, "
+            "Dreadmyst inspired, painterly stylized illustration with crisp edges, "
+            "moody color palette of deep navy, cold teal, ember orange and witch-green, "
+            "soft volumetric fog rim light, eerie atmospheric lighting, "
+            "facing camera in neutral pose, "
+            "transparent PNG background, centered figure, single subject, "
+            "clean silhouette readable from a 3/4 top-down camera angle, "
+            "tall portrait composition with feet at bottom edge"
+        ),
+        negative_prompt=(
+            "photo, realistic skin pores, 3d render, low quality, blurry, "
+            "anti-aliased halos, watermark, text, logo, multiple characters, "
+            "tiled, repeating pattern, ground shadow box"
+        ),
+        width=1024, height=1536,
+        output_width=512, output_height=768,
+        steps=30,
+    ),
+    "dreadmyst_prop": StyleProfile(
+        name="dreadmyst_prop",
+        prompt_prefix=(
+            "dark fantasy environment prop billboard for a 2.5D RPG, "
+            "Dreadmyst inspired, painterly stylized illustration, "
+            "muted earthy palette, mossy slate stone, gnarled wood, "
+            "soft fog rim light, eerie ambient mood, "
+            "transparent PNG background, single object centered, "
+            "ground-rooted base, viewed from 3/4 top-down angle, "
+            "no characters, no creatures"
+        ),
+        negative_prompt=(
+            "photo, realistic, 3d render, watermark, text, "
+            "person, character, multiple props, tiled, repeating"
+        ),
+        width=1024, height=1024,
+        output_width=512, output_height=512,
+        steps=28,
+    ),
+    "dreadmyst_tile": StyleProfile(
+        name="dreadmyst_tile",
+        prompt_prefix=(
+            "seamlessly tileable ground texture for a dark fantasy 2.5D RPG, "
+            "Dreadmyst aesthetic, top-down orthographic view, "
+            "moody overcast lighting, desaturated cold palette, "
+            "no objects, no entities, ground material only, "
+            "subtle painterly brushwork, even seam edges"
+        ),
+        negative_prompt=(
+            "person, creature, object, prop, tree, rock, watermark, text, "
+            "3d render, photo, shadow, sky"
+        ),
+        width=1024, height=1024,
+        output_width=256, output_height=256,
+        steps=30,
+    ),
+    # ─────────────────────────────────────────────────────────────────────
+    # Legacy top-down pixel art profiles (kept for compatibility)
+    # ─────────────────────────────────────────────────────────────────────
     "pixel_art_32": StyleProfile(
         name="pixel_art_32",
         prompt_prefix=(
@@ -125,6 +198,7 @@ CATEGORY_DIRS: dict[str, str] = {
     "effects":    "effects",
     "ui":         "ui",
     "portraits":  "portraits",
+    "props":      "props",         # 2.5D billboard props (trees, rocks, etc.)
     "mobs":       "characters",    # mobs go in characters/
     "npcs":       "characters",
 }
