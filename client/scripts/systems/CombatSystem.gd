@@ -15,9 +15,11 @@ extends Node
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
-const MELEE_RANGE    := 80.0   # pixels (~2.5 tiles)
-const RANGED_RANGE   := 224.0  # pixels (~7 tiles)
-const MAGIC_RANGE    := 192.0  # pixels (~6 tiles)
+# Ranges are expressed in TILES. The world adapter converts to its own units
+# (1 px == 1/32 tile in the 2D world, 1 unit == 1 tile in the 2.5D World3D).
+const MELEE_RANGE_TILES  := 2.5
+const RANGED_RANGE_TILES := 7.0
+const MAGIC_RANGE_TILES  := 6.0
 
 const MELEE_COOLDOWN  := 2.0   # seconds
 const RANGED_COOLDOWN := 1.8
@@ -62,7 +64,7 @@ func _process(delta: float) -> void:
 func request_attack(player: Node, target: Node) -> void:
 	if not target.has_method("get_entity_id"):
 		return
-	if not target.is_active if target.has_meta("is_active") else false:
+	if "is_active" in target and not target.is_active:
 		return
 	_current_target = target
 	_auto_attack_active = true
@@ -91,10 +93,16 @@ func _send_attack(target: Node) -> void:
 	_play_attack_visual(target)
 
 func _get_range() -> float:
+	# Return range in the active world's distance units.
+	#   2D World      → 1 tile == 32 px, so multiply tiles by 32.
+	#   2.5D World3D  → 1 tile == 1 unit, so use tiles directly.
+	var upt := 32.0
+	if GameManager.world and GameManager.world.has_method("units_per_tile"):
+		upt = GameManager.world.units_per_tile()
 	match _attack_type:
-		"ranged": return RANGED_RANGE
-		"magic":  return MAGIC_RANGE
-		_:        return MELEE_RANGE
+		"ranged": return RANGED_RANGE_TILES * upt
+		"magic":  return MAGIC_RANGE_TILES  * upt
+		_:        return MELEE_RANGE_TILES  * upt
 
 func _get_cooldown() -> float:
 	match _attack_type:
@@ -103,15 +111,19 @@ func _get_cooldown() -> float:
 		_:        return MELEE_COOLDOWN
 
 func _play_attack_visual(target: Node) -> void:
-	# Brief red flash on the target
-	if target.has_method("modulate"):
+	# Brief red flash on the target — works for Sprite2D/Sprite3D children alike
+	if target == null:
+		return
+	var flash_target: Object = target
+	if target is Node3D and target.has_node("Sprite3D"):
+		flash_target = target.get_node("Sprite3D")
+	if not "modulate" in flash_target:
 		return
 	var tween := target.create_tween()
-	tween.tween_property(target, "modulate", Color(2, 0.5, 0.5), 0.05)
-	tween.tween_property(target, "modulate", Color.WHITE, 0.15)
+	tween.tween_property(flash_target, "modulate", Color(2, 0.5, 0.5), 0.05)
+	tween.tween_property(flash_target, "modulate", Color.WHITE, 0.15)
 
-func _spawn_damage_number(position: Vector2, damage: int, is_crit: bool) -> void:
-	# Damage numbers float upward and fade — implemented as a simple Label3D/Label
+func _spawn_damage_number_2d(position: Vector2, damage: int, is_crit: bool) -> void:
 	var label := Label.new()
 	label.text = ("CRIT! " if is_crit else "") + str(damage)
 	label.add_theme_color_override("font_color", Color.ORANGE_RED if not is_crit else Color.YELLOW)
@@ -124,6 +136,31 @@ func _spawn_damage_number(position: Vector2, damage: int, is_crit: bool) -> void
 	tween.tween_property(label, "global_position:y", position.y - 50, 0.8)
 	tween.tween_property(label, "modulate:a", 0.0, 0.8)
 	tween.chain().tween_callback(label.queue_free)
+
+func _spawn_damage_number_3d(parent: Node3D, damage: int, is_crit: bool) -> void:
+	var label := Label3D.new()
+	label.text = ("CRIT! " if is_crit else "") + str(damage)
+	label.modulate = Color.YELLOW if is_crit else Color.ORANGE_RED
+	label.font_size = 64 if is_crit else 48
+	label.outline_size = 8
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.position = Vector3(0, 2.4, 0)
+	label.pixel_size = 0.006
+	get_tree().current_scene.add_child(label)
+	label.global_position = parent.global_position + Vector3(0, 2.4, 0)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "global_position:y",
+			label.global_position.y + 1.6, 0.8)
+	tween.tween_property(label, "modulate:a", 0.0, 0.8)
+	tween.chain().tween_callback(label.queue_free)
+
+func _spawn_damage_number(target_node: Node, damage: int, is_crit: bool) -> void:
+	if target_node is Node3D:
+		_spawn_damage_number_3d(target_node, damage, is_crit)
+	elif target_node is Node2D:
+		_spawn_damage_number_2d(target_node.global_position, damage, is_crit)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Event Handlers
@@ -141,10 +178,15 @@ func _on_combat_hit(attacker_id: String, target_id: String, damage: int, is_crit
 		if world.entity_nodes.has(tid):
 			target_node = world.entity_nodes[tid]
 	if target_node:
-		_spawn_damage_number(target_node.global_position, damage, is_critical)
-		var tween := target_node.create_tween()
-		tween.tween_property(target_node, "modulate", Color(2, 0.6, 0.6), 0.05)
-		tween.tween_property(target_node, "modulate", Color.WHITE, 0.2)
+		_spawn_damage_number(target_node, damage, is_critical)
+		# Hit-flash works for either 2D (modulate) or 3D entities (sprite modulate)
+		var flash_target: Object = target_node
+		if target_node is Node3D and target_node.has_node("Sprite3D"):
+			flash_target = target_node.get_node("Sprite3D")
+		if "modulate" in flash_target:
+			var tween := target_node.create_tween()
+			tween.tween_property(flash_target, "modulate", Color(2, 0.6, 0.6), 0.05)
+			tween.tween_property(flash_target, "modulate", Color.WHITE, 0.2)
 
 func _on_combat_entered(target: Node) -> void:
 	_current_target = target

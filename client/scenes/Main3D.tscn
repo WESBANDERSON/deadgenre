@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3 uid="uid://deadgenre_main3d_001"]
+
+[ext_resource type="PackedScene" uid="uid://deadgenre_world3d_001" path="res://scenes/world3d/World3D.tscn" id="1_world3d"]
+[ext_resource type="PackedScene" uid="uid://deadgenre_hud_001" path="res://scenes/HUD.tscn" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/ui/DeathScreen.gd" id="3_deathscreen"]
+[ext_resource type="Script" path="res://scripts/ui/CharacterSelectScreen.gd" id="4_charselect"]
+
+[node name="Main3D" type="Node3D"]
+
+[node name="World3D" parent="." instance=ExtResource("1_world3d")]
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]
+
+[node name="DeathScreen" type="CanvasLayer" parent="."]
+script = ExtResource("3_deathscreen")
+
+[node name="CharacterSelect" type="CanvasLayer" parent="."]
+script = ExtResource("4_charselect")
